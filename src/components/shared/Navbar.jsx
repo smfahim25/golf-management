@@ -20,7 +20,7 @@ const Navbar = () => {
 
   return (
     <header className="flex justify-between py-5 z-20 relative bg-[#1f2823]">
-      <h1 className="h-fit ">
+      <div className="h-fit">
         <Link href="/home">
           <Image
             src={logo}
@@ -28,7 +28,7 @@ const Navbar = () => {
             className="w-10 md:w-36 h-10 md:h-36"
           />
         </Link>
-      </h1>
+      </div>
 
       <input className="menu-btn" type="checkbox" id="menu-btn" name="menu-btn" />
       <label className="menu-icon" htmlFor="menu-btn">
