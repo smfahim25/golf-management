@@ -168,6 +168,14 @@
     transform: translateX(-100%);
   }
 }
+.tinos-bold-italic {
+  font-family: "Tinos", serif;
+  font-weight: 700;
+  font-style: italic;
+}
+.font-tinos{
+  font-family: 'Tinos', serif;
+}
 
 .container {
   max-width: 1200px;
@@ -232,6 +240,9 @@ header a {
 }
 .font-tions {
   font-family: 'Tinos', serif;
+}
+.font-minerva {
+  font-family: 'MinervaModern', serif;
 }
 
 @media screen and (max-width: 768px) {
