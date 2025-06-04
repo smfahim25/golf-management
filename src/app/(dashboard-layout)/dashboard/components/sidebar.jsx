@@ -19,6 +19,8 @@ import {
   Menu,
   ChevronLeft,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   PieChart,
   LineChart,
   BarChart,
@@ -31,6 +33,7 @@ import {
   Lock,
   Globe,
   X,
+  User2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,6 +48,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { useClientPathname } from '@/hooks/useClientPathName';
 
 // Main navigation items with sublinks
 const navigation = [
@@ -112,31 +116,82 @@ const bottomNavigation = [
 ];
 
 const Sidebar = () => {
-  const pathname = usePathname();
+  const pathname = useClientPathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const hoverTimeoutRef = useRef(null);
 
+
+  const loggedIn = true;
+  const isLoading = false
+
   // Instead of storing open/closed state as an object, we'll use a single string
   // to track which item is currently open (if any)
-  const [openItem, setOpenItem] = useState(() => {
-    const allNavItems = [...navigation, ...bottomNavigation];
+ const [openItem, setOpenItem] = useState(null);
+  const sidebarRef = useRef(null);
 
+  // Handle click outside to close mobile sidebar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only process this for mobile view
+      if (window.innerWidth >= 1024) return; // lg breakpoint
+
+      // Check if sidebar is open and click is outside
+      if (
+        isMobileOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target) &&
+        // Exclude the toggle button from this check
+        !event.target.closest('.sidebar-toggle')
+      ) {
+        setIsMobileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileOpen]);
+  useEffect(() => {
+    if (!pathname) return;
+
+    const allNavItems = [...navigation, ...bottomNavigation];
     for (const item of allNavItems) {
       if (item.subItems) {
-        const hasActiveChild = item.subItems.some(
-          (subItem) =>
-            pathname === subItem.href || pathname.startsWith(`${subItem.href}/`)
-        );
+        const hasActiveChild = item.subItems.some((subItem) => {
+          if (!subItem.href) return false;
+
+          // Basic path matches
+          if (
+            pathname === subItem.href ||
+            pathname.startsWith(`${subItem.href}/`)
+          ) {
+            return true;
+          }
+
+          // For create path, check against allowlist
+          if (pathname.startsWith(`${subItem.href}/create`)) {
+            return createAllowList.some(
+              (allowedPath) => subItem.href === allowedPath
+            );
+          }
+
+          // For edit path, always match
+          if (pathname.includes(`${subItem.href}/edit`)) {
+            return true;
+          }
+
+          return false;
+        });
         if (hasActiveChild) {
-          return item.name;
+          setOpenItem(item.name);
+          break;
         }
       }
     }
-
-    return null;
-  });
+  }, [pathname]);
 
   // Handle mouse enter - expand the sidebar
   const handleMouseEnter = () => {
@@ -176,12 +231,39 @@ const Sidebar = () => {
     setOpenItem((prev) => (prev === name ? null : name));
   };
 
+  // Paths that should be active when in 'create' mode
+  const createAllowList = [
+    '/dashboard/customization/practice-areas',
+    // Add more paths here in the future
+  ];
+
   // Check if a path is active (exact match or starts with path for parent items)
   const isActive = (href) => {
-    if (href === '/') {
-      return pathname === '/';
+    if (!pathname || !href) return false;
+
+    // Exact match
+    if (pathname === href) return true;
+
+    // For 'create' path, only highlight specific paths in the allowlist
+    if (pathname.startsWith(href + '/create')) {
+      return createAllowList.some((allowedPath) => href === allowedPath);
     }
-    return pathname === href || pathname.startsWith(`${href}/`);
+
+    // For 'edit' path, highlight all parent paths (works for all routes)
+    if (pathname.includes(href + '/edit')) {
+      return true;
+    }
+
+    // Special case for blogs
+    if (
+      href === '/dashboard/blogs' &&
+      pathname.startsWith('/dashboard/blogs') &&
+      pathname.split('/').length === 3
+    ) {
+      return true;
+    }
+
+    return false;
   };
 
   // Determine if the sidebar should appear expanded
@@ -191,7 +273,31 @@ const Sidebar = () => {
   // Render a navigation item with potential sublinks
   const NavItem = ({ item, isBottom = false }) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
-    const isItemActive = isActive(item.href);
+    const isItemActive = item.subItems
+      ? item.subItems.some((subItem) => {
+          if (!subItem.href || !pathname) return false;
+
+          // Basic path match
+          if (pathname === subItem.href) {
+            return true;
+          }
+
+          // For create path, check against allowlist
+          if (pathname.startsWith(`${subItem.href}/create`)) {
+            return createAllowList.some(
+              (allowedPath) => subItem.href === allowedPath
+            );
+          }
+
+          // For edit path, always match
+          if (pathname.includes(`${subItem.href}/edit`)) {
+            return true;
+          }
+
+          return false;
+        })
+      : isActive(item.href);
+
     const isOpen = openItem === item.name;
 
     // If the item has sublinks, we'll render a collapsible section
@@ -239,11 +345,12 @@ const Sidebar = () => {
                 <div className='flex flex-col space-y-1 animate-in slide-in-from-left-5 duration-300'>
                   {item.subItems?.map((subItem) => (
                     <Link
+                      rel='nofollow'
                       key={subItem.href}
                       href={subItem.href}
                       className={cn(
                         'flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium',
-                        isActive(subItem.href)
+                        isActive(subItem.href, true)
                           ? 'bg-secondary'
                           : ' hover:bg-secondary/50 hover:text-secondary-foreground'
                       )}
@@ -265,6 +372,7 @@ const Sidebar = () => {
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
           <Link
+            rel='nofollow'
             href={item.href}
             className={cn(
               'flex items-center rounded-md px-3 py-3 text-sm font-semibold transition-colors',
@@ -288,20 +396,28 @@ const Sidebar = () => {
       </Tooltip>
     );
   };
-
   return (
     <TooltipProvider>
       <>
+        {/* Mobile overlay that appears when sidebar is open */}
+        {isMobileOpen && (
+          <div
+            className='fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out'
+            onClick={() => setIsMobileOpen(false)}
+            aria-hidden='true'
+          />
+        )}
         <button
-          className='lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md'
+          className='lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md sidebar-toggle'
           onClick={() => setIsMobileOpen(!isMobileOpen)}
           aria-label='Toggle sidebar'
         >
           <Menu className='h-6 w-6' />
-        </button>
+        </button>{' '}
         <div
+          ref={sidebarRef}
           className={cn(
-            'fixed inset-y-0 z-20 flex flex-col bg-background transition-all max-h-screen duration-300 ease-in-out lg:static',
+            'fixed inset-y-0 z-20 flex flex-col transition-all max-h- bg-white duration-300 ease-in-out lg:static custom-shadow',
             isVisuallyExpanded ? 'w-72' : 'w-[72px]',
             isMobileOpen
               ? 'translate-x-0'
@@ -310,7 +426,7 @@ const Sidebar = () => {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <div className='border-b border-border'>
+          <div className='border-b border-gray-100'>
             <div
               className={cn(
                 'flex h-16 items-center gap-2 px-5',
@@ -318,7 +434,11 @@ const Sidebar = () => {
               )}
             >
               {isVisuallyExpanded && (
-                <Link href='/' className='flex items-center font-semibold'>
+                <Link
+                  rel='nofollow'
+                  href='/dashboard'
+                  className='flex items-center font-semibold'
+                >
                   <span className='text-lg font-bold'>Dashboard</span>
                 </Link>
               )}
@@ -326,9 +446,10 @@ const Sidebar = () => {
                 variant='ghost'
                 size='sm'
                 className={cn(
-                  'ml-auto h-8 w-8 rounded-full',
-                  !isVisuallyExpanded && 'ml-0',
-                  !isCollapsed && 'bg-gray-50 border-border border'
+                  'ml-auto h-8 w-8 rounded-full cursor-pointer',
+                  !isVisuallyExpanded
+                    ? 'ml-0'
+                    : 'bg-gray-50 border-border border'
                 )}
                 onClick={() => {
                   setIsCollapsed(!isCollapsed);
@@ -339,14 +460,19 @@ const Sidebar = () => {
                 }}
               >
                 {isCollapsed ? (
-                  <ChevronLeft
-                    className={cn(
-                      'h-4 w-4 transition-transform',
-                      !isVisuallyExpanded && 'rotate-180'
-                    )}
-                  />
+                  // <CircleEqual />
+                  isVisuallyExpanded ? (
+                    <ChevronsRight />
+                  ) : (
+                    <ChevronLeft
+                      className={cn(
+                        'h-4 w-4 transition-transform',
+                        !isVisuallyExpanded && 'rotate-180'
+                      )}
+                    />
+                  )
                 ) : (
-                  <X />
+                  <ChevronsLeft />
                 )}
                 <span className='sr-only'>
                   {isCollapsed ? 'Expand' : 'Collapse'} Sidebar
@@ -354,20 +480,32 @@ const Sidebar = () => {
               </Button>
             </div>
           </div>
-          <div className='flex-1 overflow-auto border-r border-border'>
+          <div className='flex-1 overflow-auto border-r border-gray-100'>
             <nav className='flex-1 space-y-1 px-5 py-4'>
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
+              {loggedIn && !isLoading && (
+                <NavItem
+                  key='users'
+                  item={{
+                    name: 'Users',
+                    href: '/dashboard/users',
+                    icon: User2,
+                  }}
+                />
+              )}
             </nav>
           </div>
-          <div className='border-t border-r border-border py-3 px-3'>
-            <nav className='space-y-1'>
-              {bottomNavigation.map((item) => (
-                <NavItem key={item.name} item={item} isBottom />
-              ))}
-            </nav>
-          </div>
+          {loggedIn && !isLoading && (
+            <div className='border-t border-r border-gray-100 py-3 px-3'>
+              <nav className='space-y-1 px-2'>
+                {bottomNavigation.map((item) => (
+                  <NavItem key={item.name} item={item} isBottom />
+                ))}
+              </nav>
+            </div>
+          )}
         </div>
       </>
     </TooltipProvider>
