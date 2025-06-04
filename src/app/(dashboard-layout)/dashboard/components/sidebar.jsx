@@ -1,13 +1,9 @@
-'use client';
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+"use client";
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Home,
-  BarChart2,
-  Building2,
-  Folder,
-  Wallet,
   Receipt,
   CreditCard,
   Users2,
@@ -21,12 +17,6 @@ import {
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
-  PieChart,
-  LineChart,
-  BarChart,
-  DollarSign,
-  CreditCardIcon,
-  Clock,
   FileText,
   Bell,
   UserCog,
@@ -34,83 +24,53 @@ import {
   Globe,
   X,
   User2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from '@/components/ui/tooltip';
+} from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { useClientPathname } from '@/hooks/useClientPathName';
+} from "@/components/ui/collapsible";
+import { useClientPathname } from "@/hooks/useClientPathName";
 
 // Main navigation items with sublinks
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  {
-    name: 'Analytics',
-    href: '/analytics',
-    icon: BarChart2,
-    subItems: [
-      { name: 'Overview', href: '/analytics', icon: PieChart },
-      { name: 'Revenue', href: '/analytics/revenue', icon: LineChart },
-      { name: 'User Growth', href: '/analytics/users', icon: BarChart },
-    ],
-  },
-  {
-    name: 'Organization',
-    href: '/organization',
-    icon: Building2,
-    subItems: [
-      { name: 'Team', href: '/organization/team', icon: Users2 },
-      { name: 'Departments', href: '/organization/departments', icon: Folder },
-    ],
-  },
-  { name: 'Projects', href: '/projects', icon: Folder },
-  {
-    name: 'Finances',
-    href: '/finances',
-    icon: Wallet,
-    subItems: [
-      { name: 'Accounts', href: '/finances/accounts', icon: DollarSign },
-      { name: 'Cards', href: '/finances/cards', icon: CreditCardIcon },
-      { name: 'Transactions', href: '/finances/transactions', icon: Clock },
-    ],
-  },
-  { name: 'Invoices', href: '/invoices', icon: Receipt },
-  { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Members', href: '/members', icon: Users2 },
-  { name: 'Permissions', href: '/permissions', icon: Shield },
-  { name: 'Chat', href: '/chat', icon: MessagesSquare },
-  { name: 'Meetings', href: '/meetings', icon: Video },
+  { name: "Booking Calendar", href: "/dashboard", icon: Home },
+  { name: "Invoices", href: "/invoices", icon: Receipt },
+  { name: "Payments", href: "/payments", icon: CreditCard },
+  { name: "Members", href: "/members", icon: Users2 },
+  { name: "Permissions", href: "/permissions", icon: Shield },
+  { name: "Chat", href: "/chat", icon: MessagesSquare },
+  { name: "Meetings", href: "/meetings", icon: Video },
 ];
 
 // Bottom navigation items with sublinks
 const bottomNavigation = [
   {
-    name: 'Settings',
-    href: '/settings',
+    name: "Settings",
+    href: "/settings",
     icon: Settings,
     subItems: [
-      { name: 'Profile', href: '/settings', icon: UserCog },
-      { name: 'Security', href: '/settings/security', icon: Lock },
-      { name: 'Notifications', href: '/settings/notifications', icon: Bell },
-      { name: 'Preferences', href: '/settings/preferences', icon: Globe },
+      { name: "Profile", href: "/settings", icon: UserCog },
+      { name: "Security", href: "/settings/security", icon: Lock },
+      { name: "Notifications", href: "/settings/notifications", icon: Bell },
+      { name: "Preferences", href: "/settings/preferences", icon: Globe },
     ],
   },
   {
-    name: 'Help',
-    href: '/help',
+    name: "Help",
+    href: "/help",
     icon: HelpCircle,
     subItems: [
-      { name: 'Documentation', href: '/help/docs', icon: FileText },
-      { name: 'Support', href: '/help/support', icon: MessagesSquare },
+      { name: "Documentation", href: "/help/docs", icon: FileText },
+      { name: "Support", href: "/help/support", icon: MessagesSquare },
     ],
   },
 ];
@@ -119,17 +79,32 @@ const Sidebar = () => {
   const pathname = useClientPathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-  const hoverTimeoutRef = useRef(null);
-
+  const [openItem, setOpenItem] = useState(null);
+  const sidebarRef = useRef(null);
 
   const loggedIn = true;
-  const isLoading = false
+  const isLoading = false;
 
-  // Instead of storing open/closed state as an object, we'll use a single string
-  // to track which item is currently open (if any)
- const [openItem, setOpenItem] = useState(null);
-  const sidebarRef = useRef(null);
+  // Auto-collapse on tablet devices (lg breakpoint) but expand on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 1024 && width < 1280) {
+        // lg breakpoint (tablet)
+        setIsCollapsed(true);
+      } else if (width >= 1280) {
+        // xl breakpoint and above (desktop)
+        setIsCollapsed(false);
+      }
+      // For mobile (< 1024px), keep current state
+    };
+
+    // Set initial state based on screen size
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Handle click outside to close mobile sidebar
   useEffect(() => {
@@ -143,17 +118,18 @@ const Sidebar = () => {
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target) &&
         // Exclude the toggle button from this check
-        !event.target.closest('.sidebar-toggle')
+        !event.target.closest(".sidebar-toggle")
       ) {
         setIsMobileOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMobileOpen]);
+
   useEffect(() => {
     if (!pathname) return;
 
@@ -193,47 +169,19 @@ const Sidebar = () => {
     }
   }, [pathname]);
 
-  // Handle mouse enter - expand the sidebar
-  const handleMouseEnter = () => {
-    // Only trigger hover expand if the sidebar is collapsed
-    if (isCollapsed) {
-      // Clear any existing timeout
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-      setIsHovering(true);
-    }
-  };
-
-  // Handle mouse leave - collapse the sidebar after a short delay
-  const handleMouseLeave = () => {
-    // Only trigger hover collapse if the sidebar was expanded due to hover
-    if (isCollapsed && isHovering) {
-      // Add a small delay before collapsing to prevent flickering
-      hoverTimeoutRef.current = setTimeout(() => {
-        setIsHovering(false);
-      }, 300);
-    }
-  };
-
-  // Clean up timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
-
   // Toggle a specific nav item's expanded state
   const toggleItem = (name) => {
     setOpenItem((prev) => (prev === name ? null : name));
   };
 
+  // Toggle sidebar collapse state
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
   // Paths that should be active when in 'create' mode
   const createAllowList = [
-    '/dashboard/customization/practice-areas',
+    "/dashboard/customization/practice-areas",
     // Add more paths here in the future
   ];
 
@@ -245,30 +193,26 @@ const Sidebar = () => {
     if (pathname === href) return true;
 
     // For 'create' path, only highlight specific paths in the allowlist
-    if (pathname.startsWith(href + '/create')) {
+    if (pathname.startsWith(href + "/create")) {
       return createAllowList.some((allowedPath) => href === allowedPath);
     }
 
     // For 'edit' path, highlight all parent paths (works for all routes)
-    if (pathname.includes(href + '/edit')) {
+    if (pathname.includes(href + "/edit")) {
       return true;
     }
 
     // Special case for blogs
     if (
-      href === '/dashboard/blogs' &&
-      pathname.startsWith('/dashboard/blogs') &&
-      pathname.split('/').length === 3
+      href === "/dashboard/blogs" &&
+      pathname.startsWith("/dashboard/blogs") &&
+      pathname.split("/").length === 3
     ) {
       return true;
     }
 
     return false;
   };
-
-  // Determine if the sidebar should appear expanded
-  // It's visually expanded if it's not collapsed OR if it's being hovered over
-  const isVisuallyExpanded = !isCollapsed || isHovering;
 
   // Render a navigation item with potential sublinks
   const NavItem = ({ item, isBottom = false }) => {
@@ -303,20 +247,20 @@ const Sidebar = () => {
     // If the item has sublinks, we'll render a collapsible section
     if (hasSubItems) {
       return (
-        <div className='w-full'>
+        <div className="w-full">
           <Collapsible
-            open={isVisuallyExpanded && isOpen}
+            open={!isCollapsed && isOpen}
             onOpenChange={() => toggleItem(item.name)}
-            className='w-full transition-all duration-300 ease-in-out'
+            className="w-full transition-all duration-300 ease-in-out"
           >
             <CollapsibleTrigger asChild>
               <button
                 className={cn(
-                  'flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-medium transition-colors',
+                  "flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-medium transition-colors",
                   isItemActive || isOpen
-                    ? 'bg-secondary text-secondary-foreground'
-                    : 'hover:bg-secondary hover:text-secondary-foreground',
-                  !isVisuallyExpanded && 'justify-center px-2'
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary hover:text-secondary-foreground",
+                  isCollapsed && "justify-center px-2"
                 )}
                 onClick={(e) => {
                   // Prevent the default behavior to ensure our toggle works
@@ -324,38 +268,36 @@ const Sidebar = () => {
                   toggleItem(item.name);
                 }}
               >
-                <item.icon
-                  className={cn('h-4 w-4', isVisuallyExpanded && 'mr-3')}
-                />
-                {isVisuallyExpanded && (
+                <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                {!isCollapsed && (
                   <>
-                    <span className='flex-1 text-left'>{item.name}</span>
+                    <span className="flex-1 text-left">{item.name}</span>
                     <ChevronDown
                       className={cn(
-                        'h-4 w-4 transition-transform duration-200',
-                        isOpen && 'rotate-180'
+                        "h-4 w-4 transition-transform duration-200",
+                        isOpen && "rotate-180"
                       )}
                     />
                   </>
                 )}
               </button>
             </CollapsibleTrigger>
-            {isVisuallyExpanded && (
-              <CollapsibleContent className='pl-4 pt-1 overflow-hidden transition-all duration-300 ease-in-out'>
-                <div className='flex flex-col space-y-1 animate-in slide-in-from-left-5 duration-300'>
+            {!isCollapsed && (
+              <CollapsibleContent className="pl-4 pt-1 overflow-hidden transition-all duration-300 ease-in-out">
+                <div className="flex flex-col space-y-1 animate-in slide-in-from-left-5 duration-300">
                   {item.subItems?.map((subItem) => (
                     <Link
-                      rel='nofollow'
+                      rel="nofollow"
                       key={subItem.href}
                       href={subItem.href}
                       className={cn(
-                        'flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium',
+                        "flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium",
                         isActive(subItem.href, true)
-                          ? 'bg-secondary'
-                          : ' hover:bg-secondary/50 hover:text-secondary-foreground'
+                          ? "bg-secondary"
+                          : " hover:bg-secondary/50 hover:text-secondary-foreground"
                       )}
                     >
-                      <subItem.icon className='mr-2 h-4 w-4' />
+                      <subItem.icon className="mr-2 h-4 w-4" />
                       <span>{subItem.name}</span>
                     </Link>
                   ))}
@@ -372,125 +314,105 @@ const Sidebar = () => {
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
           <Link
-            rel='nofollow'
+            rel="nofollow"
             href={item.href}
             className={cn(
-              'flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors',
+              "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
               isActive(item.href)
-                ? 'bg-secondary text-secondary-foreground'
-                : 'hover:bg-secondary hover:text-secondary-foreground',
-              !isVisuallyExpanded && 'justify-center px-2'
+                ? "bg-secondary text-secondary-foreground"
+                : "hover:bg-secondary hover:text-secondary-foreground",
+              isCollapsed && "justify-center px-2"
             )}
           >
-            <item.icon
-              className={cn('h-4 w-4', isVisuallyExpanded && 'mr-3')}
-            />
-            {isVisuallyExpanded && <span>{item.name}</span>}
+            <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+            {!isCollapsed && <span>{item.name}</span>}
           </Link>
         </TooltipTrigger>
-        {!isVisuallyExpanded && (
-          <TooltipContent side='right' className='flex items-center gap-4'>
+        {isCollapsed && (
+          <TooltipContent side="right" className="flex items-center gap-4">
             {item.name}
           </TooltipContent>
         )}
       </Tooltip>
     );
   };
+
   return (
     <TooltipProvider>
       <>
         {/* Mobile overlay that appears when sidebar is open */}
         {isMobileOpen && (
           <div
-            className='fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out'
+            className="fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out"
             onClick={() => setIsMobileOpen(false)}
-            aria-hidden='true'
+            aria-hidden="true"
           />
         )}
         <button
-          className='lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md sidebar-toggle'
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md sidebar-toggle"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          aria-label='Toggle sidebar'
+          aria-label="Toggle sidebar"
         >
-          <Menu className='h-6 w-6' />
-        </button>{' '}
+          <Menu className="h-6 w-6" />
+        </button>
+
         <div
           ref={sidebarRef}
           className={cn(
-            'fixed inset-y-0 z-20 flex flex-col transition-all max-h- bg-white duration-300 ease-in-out lg:static custom-shadow',
-            isVisuallyExpanded ? 'w-72' : 'w-[72px]',
+            "fixed inset-y-0 z-20 flex flex-col transition-all min-h-screen bg-white duration-300 ease-in-out lg:static custom-shadow",
+            isCollapsed ? "w-[72px]" : "w-72",
             isMobileOpen
-              ? 'translate-x-0'
-              : '-translate-x-full lg:translate-x-0'
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
           )}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
         >
-          <div className='border-b border-gray-100'>
+          <div className="border-b border-gray-100">
             <div
               className={cn(
-                'flex h-16 items-center gap-2 px-5',
-                !isVisuallyExpanded && 'justify-center px-2'
+                "flex h-16 items-center gap-2 px-5",
+                isCollapsed && "justify-center px-2"
               )}
             >
-              {isVisuallyExpanded && (
+              {!isCollapsed && (
                 <Link
-                  rel='nofollow'
-                  href='/dashboard'
-                  className='flex items-center font-medium'
+                  rel="nofollow"
+                  href="/dashboard"
+                  className="flex items-center font-medium"
                 >
-                  <span className='text-lg font-bold'>Dashboard</span>
+                  <span className="text-lg font-bold">Dashboard</span>
                 </Link>
               )}
               <Button
-                variant='ghost'
-                size='sm'
+                variant="ghost"
+                size="sm"
                 className={cn(
-                  'ml-auto h-8 w-8 rounded-full cursor-pointer',
-                  !isVisuallyExpanded
-                    ? 'ml-0'
-                    : 'bg-gray-50 border-border border'
+                  "ml-auto h-8 w-8 rounded-full cursor-pointer",
+                  isCollapsed ? "ml-0" : "bg-gray-50 border-border border"
                 )}
-                onClick={() => {
-                  setIsCollapsed(!isCollapsed);
-                  // If we're expanding manually, make sure hover state is reset
-                  if (!isCollapsed) {
-                    setIsHovering(false);
-                  }
-                }}
+                onClick={toggleSidebar}
               >
                 {isCollapsed ? (
-                  // <CircleEqual />
-                  isVisuallyExpanded ? (
-                    <ChevronsRight />
-                  ) : (
-                    <ChevronLeft
-                      className={cn(
-                        'h-4 w-4 transition-transform',
-                        !isVisuallyExpanded && 'rotate-180'
-                      )}
-                    />
-                  )
+                  <ChevronsRight className="h-4 w-4" />
                 ) : (
-                  <ChevronsLeft />
+                  <ChevronsLeft className="h-4 w-4" />
                 )}
-                <span className='sr-only'>
-                  {isCollapsed ? 'Expand' : 'Collapse'} Sidebar
+                <span className="sr-only">
+                  {isCollapsed ? "Expand" : "Collapse"} Sidebar
                 </span>
               </Button>
             </div>
           </div>
-          <div className='flex-1 overflow-auto border-r border-gray-100'>
-            <nav className='flex-1 space-y-1 px-5 py-4'>
+          <div className="flex-1 overflow-auto border-r border-gray-100">
+            <nav className="flex-1 space-y-1 px-5 py-4">
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
               {loggedIn && !isLoading && (
                 <NavItem
-                  key='users'
+                  key="users"
                   item={{
-                    name: 'Users',
-                    href: '/dashboard/users',
+                    name: "Users",
+                    href: "/dashboard/users",
                     icon: User2,
                   }}
                 />
@@ -498,8 +420,8 @@ const Sidebar = () => {
             </nav>
           </div>
           {loggedIn && !isLoading && (
-            <div className='border-t border-r border-gray-100 py-3 px-3'>
-              <nav className='space-y-1 px-2'>
+            <div className="border-t border-r border-gray-100 py-3 px-3">
+              <nav className="space-y-1 px-2">
                 {bottomNavigation.map((item) => (
                   <NavItem key={item.name} item={item} isBottom />
                 ))}
@@ -511,4 +433,5 @@ const Sidebar = () => {
     </TooltipProvider>
   );
 };
+
 export default Sidebar;
