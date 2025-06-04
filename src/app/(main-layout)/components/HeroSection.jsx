@@ -11,7 +11,7 @@ export default function HeroSection() {
       />
 
       {/* Overlay gradient (optional) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#1f2823]/100 to-[#1f2823]/100" />
+      <div className="absolute inset-0 bg-gradient-to-b from-primary-dark/100 to-primary-dark/100" />
 
       {/* Content Layer */}
       <div className="relative z-10 text-center text-white px-4 space-y-18">
