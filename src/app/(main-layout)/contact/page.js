@@ -1,8 +1,13 @@
-import React from 'react';
-import InstructionSection from '../components/InstructionSection';
+import { ContactForm } from './components/contact-form';
+import { InstructionSection } from './components/InstructionSection';
 
 const Contact = () => {
-  return <InstructionSection />;
+  return (
+    <main>
+      <InstructionSection />
+      <ContactForm />
+    </main>
+  );
 };
 
 export default Contact;
