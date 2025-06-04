@@ -312,7 +312,7 @@ const Sidebar = () => {
             <CollapsibleTrigger asChild>
               <button
                 className={cn(
-                  'flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-semibold transition-colors',
+                  'flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-medium transition-colors',
                   isItemActive || isOpen
                     ? 'bg-secondary text-secondary-foreground'
                     : 'hover:bg-secondary hover:text-secondary-foreground',
@@ -375,7 +375,7 @@ const Sidebar = () => {
             rel='nofollow'
             href={item.href}
             className={cn(
-              'flex items-center rounded-md px-3 py-3 text-sm font-semibold transition-colors',
+              'flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors',
               isActive(item.href)
                 ? 'bg-secondary text-secondary-foreground'
                 : 'hover:bg-secondary hover:text-secondary-foreground',
@@ -437,7 +437,7 @@ const Sidebar = () => {
                 <Link
                   rel='nofollow'
                   href='/dashboard'
-                  className='flex items-center font-semibold'
+                  className='flex items-center font-medium'
                 >
                   <span className='text-lg font-bold'>Dashboard</span>
                 </Link>
