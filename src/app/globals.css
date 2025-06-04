@@ -29,8 +29,7 @@
 @custom-variant dark (&:is(.dark *));
 :root {
   /* font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; */
-  font-family: 'MinervaModern', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'MinervaModern', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-size: 12px;
@@ -193,6 +192,11 @@
 .marquee-content {
   display: inline-flex;
   animation: marquee 480s linear infinite;
+}
+
+.marquee-content-2 {
+  display: inline-flex;
+  animation: marquee 2000s linear infinite;
 }
 
 .text-primary {
