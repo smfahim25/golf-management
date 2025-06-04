@@ -41,7 +41,7 @@ export function TopNav() {
   const isAdminLoading = false;
   return (
     <header className='sticky top-0 z-40 border-b border-gray-100 custom-shadow bg-background'>
-      <div className='mx-auto max-w-[1440px] px-6 flex h-16 items-center justify-between'>
+      <div className='mx-auto max-w-[1440px] px-6 flex h-16 items-center w-full justify-between'>
         <div className='hidden md:block'>
           <nav className='flex items-center space-x-2'>
             <Link
