@@ -168,11 +168,11 @@
   }
 }
 .tinos-bold-italic {
-  font-family: "Tinos", serif;
+  font-family: 'Tinos', serif;
   font-weight: 700;
   font-style: italic;
 }
-.font-tinos{
+.font-tinos {
   font-family: 'Tinos', serif;
 }
 
@@ -249,25 +249,25 @@ header a {
   font-family: 'MinervaModern', serif;
 }
 
-.blog h1{
+.blog h1 {
   font-family: 'MinervaModern', serif;
   font-weight: 500;
   font-size: 3.5rem;
 }
-.blog h2{
+.blog h2 {
   font-family: 'MinervaModern', serif;
   font-weight: 700;
   font-size: 2.2rem;
   line-height: 1.2;
 }
-.blog p{
+.blog p {
   font-family: 'Tinos', serif;
   font-weight: 400;
   font-size: 1.2rem;
   line-height: 1.6;
 }
 
-.blog ul{
+.blog ul {
   font-family: 'Tinos', serif;
   font-weight: 400;
   font-size: 1.2rem;
@@ -275,7 +275,7 @@ header a {
   list-style-type: disc;
   list-style-position: inside;
   margin-top: 12px;
-  }
+}
 
 @media screen and (max-width: 768px) {
   header {
@@ -398,4 +398,7 @@ header a {
   .container {
     width: 90%;
   }
+}
+.rtl [data-carousel-slide] {
+  direction: rtl;
 }
