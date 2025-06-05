@@ -24,6 +24,7 @@ import {
   Globe,
   X,
   User2,
+  NotebookText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,12 +44,8 @@ import { useClientPathname } from "@/hooks/useClientPathName";
 // Main navigation items with sublinks
 const navigation = [
   { name: "Booking Calendar", href: "/dashboard", icon: Home },
-  { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Members", href: "/members", icon: Users2 },
-  { name: "Permissions", href: "/permissions", icon: Shield },
-  { name: "Chat", href: "/chat", icon: MessagesSquare },
-  { name: "Meetings", href: "/meetings", icon: Video },
+  { name: "Manage Bookings", href: "/dashboard/bookings", icon: NotebookText },
+  { name: "Manage Members", href: "/dashboard/members", icon: Users2 },
 ];
 
 // Bottom navigation items with sublinks

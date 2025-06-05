@@ -231,6 +231,10 @@ header a {
   font-family: "Tinos", serif;
 }
 
+button {
+  cursor: pointer !important;
+}
+
 @media screen and (max-width: 768px) {
   header {
     display: grid;
