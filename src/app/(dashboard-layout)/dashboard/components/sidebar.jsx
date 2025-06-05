@@ -1,7 +1,7 @@
-"use client";
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+'use client';
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Home,
   Receipt,
@@ -24,55 +24,49 @@ import {
   Globe,
   X,
   User2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+  LandPlot,
+  CalendarMinus2,
+  UserRoundSearch,
+  LayoutList,
+  Users,
+  LogOut,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { useClientPathname } from "@/hooks/useClientPathName";
+} from '@/components/ui/collapsible';
+import { useClientPathname } from '@/hooks/useClientPathName';
 
 // Main navigation items with sublinks
 const navigation = [
-  { name: "Booking Calendar", href: "/dashboard", icon: Home },
-  { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Members", href: "/members", icon: Users2 },
-  { name: "Permissions", href: "/permissions", icon: Shield },
-  { name: "Chat", href: "/chat", icon: MessagesSquare },
-  { name: "Meetings", href: "/meetings", icon: Video },
+  { name: 'Booking Calendar', href: '/dashboard', icon: LandPlot },
+  { name: 'My Bookings', href: '/dashboard/bookings', icon: CalendarMinus2 },
+  {
+    name: 'Discussion Forum',
+    href: 'https://links.geneva.com/invite/34716fa4-0b17-4bf8-9b96-309b20600f2f',
+    target: '_blank',
+    icon: MessagesSquare,
+  },
+  {
+    name: 'Guest waiver',
+    href: 'https://app.waiversign.com/e/64276294da72d0001966df71/doc/64276312da72d0001966e00f?event=none',
+    icon: UserRoundSearch,
+    target: '_blank',
+  }
 ];
 
 // Bottom navigation items with sublinks
 const bottomNavigation = [
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-    subItems: [
-      { name: "Profile", href: "/settings", icon: UserCog },
-      { name: "Security", href: "/settings/security", icon: Lock },
-      { name: "Notifications", href: "/settings/notifications", icon: Bell },
-      { name: "Preferences", href: "/settings/preferences", icon: Globe },
-    ],
-  },
-  {
-    name: "Help",
-    href: "/help",
-    icon: HelpCircle,
-    subItems: [
-      { name: "Documentation", href: "/help/docs", icon: FileText },
-      { name: "Support", href: "/help/support", icon: MessagesSquare },
-    ],
-  },
+  { name: 'Edit Profile', href: '/dashboard/account/profile', icon: FileText }
 ];
 
 const Sidebar = () => {
@@ -102,8 +96,8 @@ const Sidebar = () => {
     // Set initial state based on screen size
     handleResize();
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Handle click outside to close mobile sidebar
@@ -118,15 +112,15 @@ const Sidebar = () => {
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target) &&
         // Exclude the toggle button from this check
-        !event.target.closest(".sidebar-toggle")
+        !event.target.closest('.sidebar-toggle')
       ) {
         setIsMobileOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isMobileOpen]);
 
@@ -181,7 +175,7 @@ const Sidebar = () => {
 
   // Paths that should be active when in 'create' mode
   const createAllowList = [
-    "/dashboard/customization/practice-areas",
+    '/dashboard/customization/practice-areas',
     // Add more paths here in the future
   ];
 
@@ -193,20 +187,20 @@ const Sidebar = () => {
     if (pathname === href) return true;
 
     // For 'create' path, only highlight specific paths in the allowlist
-    if (pathname.startsWith(href + "/create")) {
+    if (pathname.startsWith(href + '/create')) {
       return createAllowList.some((allowedPath) => href === allowedPath);
     }
 
     // For 'edit' path, highlight all parent paths (works for all routes)
-    if (pathname.includes(href + "/edit")) {
+    if (pathname.includes(href + '/edit')) {
       return true;
     }
 
     // Special case for blogs
     if (
-      href === "/dashboard/blogs" &&
-      pathname.startsWith("/dashboard/blogs") &&
-      pathname.split("/").length === 3
+      href === '/dashboard/blogs' &&
+      pathname.startsWith('/dashboard/blogs') &&
+      pathname.split('/').length === 3
     ) {
       return true;
     }
@@ -215,7 +209,7 @@ const Sidebar = () => {
   };
 
   // Render a navigation item with potential sublinks
-  const NavItem = ({ item, isBottom = false }) => {
+  const NavItem = ({ item, isBottom = false, target = 'self' }) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isItemActive = item.subItems
       ? item.subItems.some((subItem) => {
@@ -247,20 +241,20 @@ const Sidebar = () => {
     // If the item has sublinks, we'll render a collapsible section
     if (hasSubItems) {
       return (
-        <div className="w-full">
+        <div className='w-full'>
           <Collapsible
             open={!isCollapsed && isOpen}
             onOpenChange={() => toggleItem(item.name)}
-            className="w-full transition-all duration-300 ease-in-out"
+            className='w-full transition-all duration-300 ease-in-out'
           >
             <CollapsibleTrigger asChild>
               <button
                 className={cn(
-                  "flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-medium transition-colors",
+                  'flex w-full items-center rounded-md px-3 py-3 text-sm cursor-pointer font-medium transition-colors',
                   isItemActive || isOpen
-                    ? "bg-secondary text-secondary-foreground"
-                    : "hover:bg-secondary hover:text-secondary-foreground",
-                  isCollapsed && "justify-center px-2"
+                    ? 'bg-secondary text-secondary-foreground'
+                    : 'hover:bg-secondary hover:text-secondary-foreground',
+                  isCollapsed && 'justify-center px-2'
                 )}
                 onClick={(e) => {
                   // Prevent the default behavior to ensure our toggle works
@@ -268,14 +262,14 @@ const Sidebar = () => {
                   toggleItem(item.name);
                 }}
               >
-                <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                <item.icon className={cn('h-4 w-4', !isCollapsed && 'mr-3')} />
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1 text-left">{item.name}</span>
+                    <span className='flex-1 text-left'>{item.name}</span>
                     <ChevronDown
                       className={cn(
-                        "h-4 w-4 transition-transform duration-200",
-                        isOpen && "rotate-180"
+                        'h-4 w-4 transition-transform duration-200',
+                        isOpen && 'rotate-180'
                       )}
                     />
                   </>
@@ -283,21 +277,22 @@ const Sidebar = () => {
               </button>
             </CollapsibleTrigger>
             {!isCollapsed && (
-              <CollapsibleContent className="pl-4 pt-1 overflow-hidden transition-all duration-300 ease-in-out">
-                <div className="flex flex-col space-y-1 animate-in slide-in-from-left-5 duration-300">
+              <CollapsibleContent className='pl-4 pt-1 overflow-hidden transition-all duration-300 ease-in-out'>
+                <div className='flex flex-col space-y-1 animate-in slide-in-from-left-5 duration-300'>
                   {item.subItems?.map((subItem) => (
                     <Link
-                      rel="nofollow"
+                      rel='nofollow'
                       key={subItem.href}
                       href={subItem.href}
+                      target={target}
                       className={cn(
-                        "flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium",
+                        'flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium',
                         isActive(subItem.href, true)
-                          ? "bg-secondary"
-                          : " hover:bg-secondary/50 hover:text-secondary-foreground"
+                          ? 'bg-secondary'
+                          : ' hover:bg-secondary/50 hover:text-secondary-foreground'
                       )}
                     >
-                      <subItem.icon className="mr-2 h-4 w-4" />
+                      <subItem.icon className='mr-2 h-4 w-4' />
                       <span>{subItem.name}</span>
                     </Link>
                   ))}
@@ -314,22 +309,26 @@ const Sidebar = () => {
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
           <Link
-            rel="nofollow"
+            rel='nofollow'
             href={item.href}
+            target={target}
             className={cn(
-              "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
+              'flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors',
               isActive(item.href)
-                ? "bg-secondary text-secondary-foreground"
-                : "hover:bg-secondary hover:text-secondary-foreground",
-              isCollapsed && "justify-center px-2"
+                ? 'bg-primary text-secondary-foreground'
+                : 'hover:bg-secondary hover:text-secondary-foreground',
+              isCollapsed && 'justify-center px-2'
             )}
           >
-            <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+            <item.icon className={cn('h-4 w-4', !isCollapsed && 'mr-3')} />
             {!isCollapsed && <span>{item.name}</span>}
           </Link>
         </TooltipTrigger>
         {isCollapsed && (
-          <TooltipContent side="right" className="flex items-center gap-4">
+          <TooltipContent
+            side='right'
+            className='flex items-center gap-4'
+          >
             {item.name}
           </TooltipContent>
         )}
@@ -343,88 +342,109 @@ const Sidebar = () => {
         {/* Mobile overlay that appears when sidebar is open */}
         {isMobileOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out"
+            className='fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out'
             onClick={() => setIsMobileOpen(false)}
-            aria-hidden="true"
+            aria-hidden='true'
           />
         )}
         <button
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md sidebar-toggle"
+          className='lg:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-md sidebar-toggle'
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          aria-label="Toggle sidebar"
+          aria-label='Toggle sidebar'
         >
-          <Menu className="h-6 w-6" />
+          <Menu className='h-6 w-6' />
         </button>
 
         <div
           ref={sidebarRef}
           className={cn(
-            "fixed inset-y-0 z-20 flex flex-col transition-all min-h-screen bg-white duration-300 ease-in-out lg:static custom-shadow",
-            isCollapsed ? "w-[72px]" : "w-72",
+            'fixed inset-y-0 z-20 flex flex-col transition-all min-h-screen bg-primary-dark text-white duration-300 ease-in-out lg:static custom-shadow',
+            isCollapsed ? 'w-[72px]' : 'w-72',
             isMobileOpen
-              ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
+              ? 'translate-x-0'
+              : '-translate-x-full lg:translate-x-0'
           )}
         >
-          <div className="border-b border-gray-100">
+          <div className='border-b border-gray-100'>
             <div
               className={cn(
-                "flex h-16 items-center gap-2 px-5",
-                isCollapsed && "justify-center px-2"
+                'flex h-16 items-center gap-2 px-5',
+                isCollapsed && 'justify-center px-2'
               )}
             >
               {!isCollapsed && (
                 <Link
-                  rel="nofollow"
-                  href="/dashboard"
-                  className="flex items-center font-medium"
+                  rel='nofollow'
+                  href='/dashboard'
+                  className='flex items-center font-medium'
                 >
-                  <span className="text-lg font-bold">Dashboard</span>
+                  <span className='text-lg font-bold'>Dashboard</span>
                 </Link>
               )}
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 className={cn(
-                  "ml-auto h-8 w-8 rounded-full cursor-pointer",
-                  isCollapsed ? "ml-0" : "bg-gray-50 border-border border"
+                  'ml-auto h-8 w-8 rounded-full cursor-pointer',
+                  isCollapsed ? 'ml-0' : 'bg-primary border-border border'
                 )}
                 onClick={toggleSidebar}
               >
                 {isCollapsed ? (
-                  <ChevronsRight className="h-4 w-4" />
+                  <ChevronsRight className='h-4 w-4' />
                 ) : (
-                  <ChevronsLeft className="h-4 w-4" />
+                  <ChevronsLeft className='h-4 w-4' />
                 )}
-                <span className="sr-only">
-                  {isCollapsed ? "Expand" : "Collapse"} Sidebar
+                <span className='sr-only'>
+                  {isCollapsed ? 'Expand' : 'Collapse'} Sidebar
                 </span>
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-auto border-r border-gray-100">
-            <nav className="flex-1 space-y-1 px-5 py-4">
+          <div className='flex-1 overflow-auto border-r border-gray-100'>
+            <nav className='flex-1 space-y-1 px-5 py-4'>
               {navigation.map((item) => (
-                <NavItem key={item.name} item={item} />
+                <NavItem
+                  key={item.name}
+                  item={item}
+                  target={item.target}
+                />
               ))}
               {loggedIn && !isLoading && (
                 <NavItem
-                  key="users"
+                  key='Manage Bookings'
                   item={{
-                    name: "Users",
-                    href: "/dashboard/users",
-                    icon: User2,
+                    name: 'Manage Bookings',
+                    href: '/dashboard/bookings',
+                    icon: LayoutList,
+                  }}
+                />
+              )}
+              {loggedIn && !isLoading && (
+                <NavItem
+                  key='Manage Users'
+                  item={{
+                    name: 'Manage Users',
+                    href: '/dashboard/users',
+                    icon: Users,
                   }}
                 />
               )}
             </nav>
           </div>
           {loggedIn && !isLoading && (
-            <div className="border-t border-r border-gray-100 py-3 px-3">
-              <nav className="space-y-1 px-2">
+            <div className='border-t border-r border-gray-100 py-3 px-3'>
+              <nav className='space-y-1 px-2'>
                 {bottomNavigation.map((item) => (
-                  <NavItem key={item.name} item={item} isBottom />
+                  <NavItem
+                    key={item.name}
+                    item={item}
+                    isBottom
+                  />
                 ))}
+                <button className='text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md'>
+                  <LogOut className='w-4 h-4'/> Logout
+                </button>
               </nav>
             </div>
           )}

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 // import { ThemeToggle } from "./theme-toggle"
 // import { Notifications } from "./notifications"
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 // import { useSettings } from "@/contexts/settings-context"
 import {
   DropdownMenu,
@@ -11,18 +11,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import React from "react";
-import { LogOut, Settings, UserRound } from "lucide-react";
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import React from 'react';
+import { LogOut, Settings, UserRound } from 'lucide-react';
 // import { useDispatch, useSelector } from 'react-redux';
 // import { logout } from '@/store/slices/authSlice';
 // import useAdmin from '@/hooks/useAdmin';
+import logo from '@/assets/full_logo_white.webp';
+import Image from 'next/image';
 
 export function TopNav() {
   const pathname = usePathname();
-  const pathSegments = pathname.split("/").filter(Boolean);
+  const pathSegments = pathname.split('/').filter(Boolean);
 
   // const user = useSelector((state) => state?.auth?.user);
   // const dispatch = useDispatch();
@@ -32,18 +34,18 @@ export function TopNav() {
   // };
 
   const user = {
-    name: "John Doe",
-    username: "johndoe",
-    email: "john@gmail.com",
+    name: 'John Doe',
+    username: 'johndoe',
+    email: 'john@gmail.com',
   };
   // const { isAdmin, isAdminLoading } = useAdmin();
   const isAdmin = false;
   const isAdminLoading = false;
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-100 custom-shadow bg-background">
-      <div className="mx-auto max-w-[1440px] px-6 flex h-16 items-center w-full justify-between">
-        <div className="hidden md:block">
-          <nav className="flex items-center space-x-2">
+    <header className='sticky top-0 z-40 border-b border-gray-100 custom-shadow bg-primary-dark text-white w-full'>
+      <div className='mx-auto px-6 flex h-16 items-center w-[100vw] justify-between'>
+        <div className='pl-10'>
+          {/* <nav className="flex items-center space-x-2">
             <Link
               rel="nofollow"
               href="/"
@@ -68,14 +70,24 @@ export function TopNav() {
                   </Link>
                 </React.Fragment>
               ))}
-          </nav>
+          </nav> */}
+          <Link
+            href='/'
+            className='flex items-center gap-2'
+          >
+            <Image
+              src={logo}
+              alt='Logo'
+              className='h-16 w-auto'
+            />
+          </Link>
         </div>
-        <div className="flex flex-1 justify-end items-center gap-4">
+        <div className='flex flex-1 w-full justify-end items-center gap-4'>
           {/* <Notifications /> */}
           {/* <ThemeToggle /> */}
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full cursor-pointer">
                 <Avatar className="h-8 w-8">
                   <AvatarImage
                     className="object-cover object-center"
@@ -132,7 +144,11 @@ export function TopNav() {
                 </button>
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
+          <p className='text-xl'>
+            Call{' '}
+            <span className='text-primary ml-1 italic'>(248) 690-7370</span>
+          </p>
         </div>
       </div>
     </header>
