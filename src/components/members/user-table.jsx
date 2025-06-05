@@ -73,7 +73,7 @@ export default function UsersTable({
       <div className="relative" ref={(el) => (dropdownRefs.current[key] = el)}>
         <button
           onClick={() => toggleDropdown(user.id, field)}
-          className="flex items-center justify-between w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white hover:bg-gray-50 min-w-0"
+          className="flex items-center justify-between w-full px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 min-w-0"
         >
           <span className={`${getStatusColor(value, field)} truncate`}>
             {value}

@@ -48,9 +48,13 @@ import { useClientPathname } from "@/hooks/useClientPathName";
 
 // Main navigation items with sublinks
 const navigation = [
-  { name: "Booking Calendar", href: "/dashboard", icon: LandPlot },
-  { name: "Manage Bookings", href: "/dashboard/bookings", icon: NotebookText },
-  { name: "Manage Members", href: "/dashboard/members", icon: Users2 },
+  {
+    name: "Booking Calendar",
+    href: "/dashboard",
+    icon: LandPlot,
+    target: "_self",
+  },
+
   {
     name: "Discussion Forum",
     href: "https://links.geneva.com/invite/34716fa4-0b17-4bf8-9b96-309b20600f2f",
@@ -62,6 +66,18 @@ const navigation = [
     href: "https://app.waiversign.com/e/64276294da72d0001966df71/doc/64276312da72d0001966e00f?event=none",
     icon: UserRoundSearch,
     target: "_blank",
+  },
+  {
+    name: "Manage Bookings",
+    href: "/dashboard/bookings",
+    icon: CalendarMinus2,
+    target: "_self",
+  },
+  {
+    name: "Manage Members",
+    href: "/dashboard/members",
+    icon: Users2,
+    target: "_self",
   },
 ];
 
@@ -404,26 +420,6 @@ const Sidebar = () => {
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} target={item.target} />
               ))}
-              {loggedIn && !isLoading && (
-                <NavItem
-                  key="Manage Bookings"
-                  item={{
-                    name: "Manage Bookings",
-                    href: "/dashboard/bookings",
-                    icon: LayoutList,
-                  }}
-                />
-              )}
-              {loggedIn && !isLoading && (
-                <NavItem
-                  key="Manage Users"
-                  item={{
-                    name: "Manage Users",
-                    href: "/dashboard/users",
-                    icon: Users,
-                  }}
-                />
-              )}
             </nav>
           </div>
           {loggedIn && !isLoading && (
