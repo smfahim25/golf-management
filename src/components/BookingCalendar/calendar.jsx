@@ -237,7 +237,7 @@ export default function Calendar({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+    <div className="bg-white overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">

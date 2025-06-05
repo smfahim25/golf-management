@@ -2,12 +2,12 @@ import heroBg from '@/assets/box-logo.png'
 import Image from 'next/image';
 export default function HeroSection() {
   return (
-    <section className="relative w-full h-[95vh]  flex items-center justify-center overflow-hidden -mt-20 z-0">
+    <section className="relative w-full h-[95vh] max-h-[800px]  flex items-center justify-center overflow-hidden -mt-20 z-0">
       {/* Image Layer with Blend */}
       <Image
         src={heroBg} // Replace with your actual path
         alt="Background Design"
-        className="absolute inset-0 w-full -top-10 h-full object-cover object-[65%_0%] sm:object-center z-10 opacity-45"
+        className="absolute inset-0 w-full  h-full object-cover object-[65%_0%] sm:object-center z-10 opacity-45"
       />
 
       {/* Overlay gradient (optional) */}

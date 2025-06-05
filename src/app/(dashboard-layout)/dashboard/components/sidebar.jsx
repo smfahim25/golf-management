@@ -24,7 +24,12 @@ import {
   Globe,
   X,
   User2,
-  NotebookText,
+  LandPlot,
+  CalendarMinus2,
+  UserRoundSearch,
+  LayoutList,
+  Users,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,33 +48,26 @@ import { useClientPathname } from "@/hooks/useClientPathName";
 
 // Main navigation items with sublinks
 const navigation = [
-  { name: "Booking Calendar", href: "/dashboard", icon: Home },
+  { name: "Booking Calendar", href: "/dashboard", icon: LandPlot },
   { name: "Manage Bookings", href: "/dashboard/bookings", icon: NotebookText },
   { name: "Manage Members", href: "/dashboard/members", icon: Users2 },
+  {
+    name: "Discussion Forum",
+    href: "https://links.geneva.com/invite/34716fa4-0b17-4bf8-9b96-309b20600f2f",
+    target: "_blank",
+    icon: MessagesSquare,
+  },
+  {
+    name: "Guest waiver",
+    href: "https://app.waiversign.com/e/64276294da72d0001966df71/doc/64276312da72d0001966e00f?event=none",
+    icon: UserRoundSearch,
+    target: "_blank",
+  },
 ];
 
 // Bottom navigation items with sublinks
 const bottomNavigation = [
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-    subItems: [
-      { name: "Profile", href: "/settings", icon: UserCog },
-      { name: "Security", href: "/settings/security", icon: Lock },
-      { name: "Notifications", href: "/settings/notifications", icon: Bell },
-      { name: "Preferences", href: "/settings/preferences", icon: Globe },
-    ],
-  },
-  {
-    name: "Help",
-    href: "/help",
-    icon: HelpCircle,
-    subItems: [
-      { name: "Documentation", href: "/help/docs", icon: FileText },
-      { name: "Support", href: "/help/support", icon: MessagesSquare },
-    ],
-  },
+  { name: "Edit Profile", href: "/dashboard/account/profile", icon: FileText },
 ];
 
 const Sidebar = () => {
@@ -212,7 +210,7 @@ const Sidebar = () => {
   };
 
   // Render a navigation item with potential sublinks
-  const NavItem = ({ item, isBottom = false }) => {
+  const NavItem = ({ item, isBottom = false, target = "self" }) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isItemActive = item.subItems
       ? item.subItems.some((subItem) => {
@@ -287,6 +285,7 @@ const Sidebar = () => {
                       rel="nofollow"
                       key={subItem.href}
                       href={subItem.href}
+                      target={target}
                       className={cn(
                         "flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium",
                         isActive(subItem.href, true)
@@ -313,10 +312,11 @@ const Sidebar = () => {
           <Link
             rel="nofollow"
             href={item.href}
+            target={target}
             className={cn(
               "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
               isActive(item.href)
-                ? "bg-secondary text-secondary-foreground"
+                ? "bg-primary text-secondary-foreground"
                 : "hover:bg-secondary hover:text-secondary-foreground",
               isCollapsed && "justify-center px-2"
             )}
@@ -356,7 +356,7 @@ const Sidebar = () => {
         <div
           ref={sidebarRef}
           className={cn(
-            "fixed inset-y-0 z-20 flex flex-col transition-all min-h-screen bg-white duration-300 ease-in-out lg:static custom-shadow",
+            "fixed inset-y-0 z-20 flex flex-col transition-all min-h-screen bg-primary-dark text-white duration-300 ease-in-out lg:static custom-shadow",
             isCollapsed ? "w-[72px]" : "w-72",
             isMobileOpen
               ? "translate-x-0"
@@ -384,7 +384,7 @@ const Sidebar = () => {
                 size="sm"
                 className={cn(
                   "ml-auto h-8 w-8 rounded-full cursor-pointer",
-                  isCollapsed ? "ml-0" : "bg-gray-50 border-border border"
+                  isCollapsed ? "ml-0" : "bg-primary border-border border"
                 )}
                 onClick={toggleSidebar}
               >
@@ -402,15 +402,25 @@ const Sidebar = () => {
           <div className="flex-1 overflow-auto border-r border-gray-100">
             <nav className="flex-1 space-y-1 px-5 py-4">
               {navigation.map((item) => (
-                <NavItem key={item.name} item={item} />
+                <NavItem key={item.name} item={item} target={item.target} />
               ))}
               {loggedIn && !isLoading && (
                 <NavItem
-                  key="users"
+                  key="Manage Bookings"
                   item={{
-                    name: "Users",
+                    name: "Manage Bookings",
+                    href: "/dashboard/bookings",
+                    icon: LayoutList,
+                  }}
+                />
+              )}
+              {loggedIn && !isLoading && (
+                <NavItem
+                  key="Manage Users"
+                  item={{
+                    name: "Manage Users",
                     href: "/dashboard/users",
-                    icon: User2,
+                    icon: Users,
                   }}
                 />
               )}
@@ -422,6 +432,9 @@ const Sidebar = () => {
                 {bottomNavigation.map((item) => (
                   <NavItem key={item.name} item={item} isBottom />
                 ))}
+                <button className="text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md">
+                  <LogOut className="w-4 h-4" /> Logout
+                </button>
               </nav>
             </div>
           )}

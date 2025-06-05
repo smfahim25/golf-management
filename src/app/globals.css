@@ -1,27 +1,27 @@
-@import url("https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap");
-@import "tailwindcss";
-@import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @font-face {
-  font-family: "MinervaModern";
-  src: url("../assets/fonts/MinervaModern-Black.ttf");
+  font-family: 'MinervaModern';
+  src: url('../assets/fonts/MinervaModern-Black.ttf');
   font-weight: 900;
   font-style: normal;
 }
 @font-face {
-  font-family: "MinervaModern";
-  src: url("../assets/fonts/MinervaModern-Bold.ttf");
+  font-family: 'MinervaModern';
+  src: url('../assets/fonts/MinervaModern-Bold.ttf');
   font-weight: 700;
   font-style: normal;
 }
 @font-face {
-  font-family: "MinervaModern";
-  src: url("../assets/fonts/MinervaModern-Bold.ttf");
+  font-family: 'MinervaModern';
+  src: url('../assets/fonts/MinervaModern-Bold.ttf');
   font-weight: 400;
   font-style: normal;
 }
 @font-face {
-  font-family: "MinervaModern";
-  src: url("../assets/fonts/MinervaModern-Regular.otf");
+  font-family: 'MinervaModern';
+  src: url('../assets/fonts/MinervaModern-Regular.otf');
   font-weight: 400;
   font-style: normal;
 }
@@ -29,15 +29,22 @@
 @custom-variant dark (&:is(.dark *));
 :root {
   /* font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; */
+  /* font-family: 'Tinos', serif; */
+
   /* font-family: "MinervaModern", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif; */
+
+  /* font-family: 'MinervaModern', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; */
+
   line-height: 1.5;
   font-weight: 400;
   font-size: 15px;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
+
   background-color: white;
+
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -168,10 +175,18 @@
     transform: translateX(-100%);
   }
 }
+.tinos-bold-italic {
+  font-family: 'Tinos', serif;
+  font-weight: 700;
+  font-style: italic;
+}
+.font-tinos {
+  font-family: 'Tinos', serif;
+}
 
 .container {
-  max-width: 1400px;
-  width: 90%;
+  max-width: 1200px;
+  width: 80%;
   margin: 0 auto;
   padding: 0 1rem;
 }
@@ -185,6 +200,11 @@
 .marquee-content {
   display: inline-flex;
   animation: marquee 480s linear infinite;
+}
+
+.marquee-content-2 {
+  display: inline-flex;
+  animation: marquee 2000s linear infinite;
 }
 
 .text-primary {
@@ -228,7 +248,41 @@ header a {
   align-items: center;
   margin-right: 1.7rem;
   gap: 24px;
-  font-family: "Tinos", serif;
+  font-family: 'Tinos', serif;
+}
+.font-tions {
+  font-family: 'Tinos', serif;
+}
+.font-minerva, h1,h2,h3,h4,h5,h6  {
+  font-family: 'MinervaModern', serif;
+}
+
+.blog h1 {
+  font-family: 'MinervaModern', serif;
+  font-weight: 500;
+  font-size: 3.5rem;
+}
+.blog h2 {
+  font-family: 'MinervaModern', serif;
+  font-weight: 700;
+  font-size: 2.2rem;
+  line-height: 1.2;
+}
+.blog p {
+  font-family: 'Tinos', serif;
+  font-weight: 400;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.blog ul {
+  font-family: 'Tinos', serif;
+  font-weight: 400;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  list-style-type: disc;
+  list-style-position: inside;
+  margin-top: 12px;
 }
 
 button {
@@ -239,8 +293,8 @@ button {
   header {
     display: grid;
     grid-template-areas:
-      "title   title   hamburger"
-      "nav     nav     nav";
+      'title   title   hamburger'
+      'nav     nav     nav';
   }
 
   h1 {
@@ -290,7 +344,7 @@ button {
     display: block;
     width: 100%;
     height: 100%;
-    content: "";
+    content: '';
     position: absolute;
     transition: all 0.2s ease-out;
   }
@@ -353,4 +407,10 @@ button {
   .menu-btn:checked ~ .menu-icon .navicon:after {
     top: 0;
   }
+  .container {
+    width: 90%;
+  }
+}
+.rtl [data-carousel-slide] {
+  direction: rtl;
 }
