@@ -1,180 +1,14 @@
 'use client';
 
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
-import { ChevronsUpDown, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-export const columns = [
-  {
-    accessorKey: 'date',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Date
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='font-medium'>{row.getValue('date')}</div>,
-  },
-  {
-    accessorKey: 'name',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Name
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue('name')}</div>,
-  },
-  {
-    accessorKey: 'bay',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Bay
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='text-center'>{row.getValue('bay')}</div>,
-  },
-  {
-    accessorKey: 'hours',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          # of Hours
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='text-center'>{row.getValue('hours')}</div>,
-  },
-  {
-    accessorKey: 'startTime',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Start Time
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue('startTime')}</div>,
-  },
-  {
-    accessorKey: 'endTime',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          End Time
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue('endTime')}</div>,
-  },
-  {
-    accessorKey: 'players',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Player(s)
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='text-center'>{row.getValue('players')}</div>,
-  },
-  {
-    accessorKey: 'members',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Member(s)
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='text-center'>{row.getValue('members')}</div>,
-  },
-  {
-    accessorKey: 'guests',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className='h-auto p-0 font-medium hover:bg-transparent'
-        >
-          Guest(s)
-          <ChevronsUpDown className='ml-2 h-4 w-4 opacity-50' />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className='text-center'>{row.getValue('guests')}</div>,
-  },
-  {
-    id: 'actions',
-    enableHiding: false,
-    cell: ({ row }) => {
-      const booking = row.original;
 
-      return (
-        <Button
-          variant='destructive'
-          size='sm'
-          onClick={() => {
-            // Handle delete action
-            console.log('Delete booking:', booking.id);
-          }}
-        >
-          Delete
-        </Button>
-      );
-    },
-  },
-];
-
-export default function AdvancedDataTable({ data = [] }) {
+export function AdvancedDataTable({ columns, data, searchPlaceholder = 'Search by any field', showSearch = true, showPagination = true, pageSize = 10, className = '', emptyMessage = 'No results.' }) {
   const [sorting, setSorting] = React.useState([]);
   const [columnFilters, setColumnFilters] = React.useState([]);
   const [columnVisibility, setColumnVisibility] = React.useState({});
@@ -194,6 +28,11 @@ export default function AdvancedDataTable({ data = [] }) {
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: 'includesString',
+    initialState: {
+      pagination: {
+        pageSize,
+      },
+    },
     state: {
       sorting,
       columnFilters,
@@ -204,18 +43,20 @@ export default function AdvancedDataTable({ data = [] }) {
   });
 
   return (
-    <div className='w-full space-y-4 font-sans'>
-      <div className='flex items-center space-x-2'>
-        <div className='relative flex-1'>
-          <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
-          <Input
-            placeholder='Search by any field'
-            value={globalFilter ?? ''}
-            onChange={(event) => setGlobalFilter(String(event.target.value))}
-            className='pl-10'
-          />
+    <div className={`w-full space-y-4 font-sans ${className}`}>
+      {showSearch && (
+        <div className='flex items-center space-x-2'>
+          <div className='relative flex-1'>
+            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+            <Input
+              placeholder={searchPlaceholder}
+              value={globalFilter ?? ''}
+              onChange={(event) => setGlobalFilter(String(event.target.value))}
+              className='pl-10'
+            />
+          </div>
         </div>
-      </div>
+      )}
       <div className='rounded-md border'>
         <Table>
           <TableHeader>
@@ -256,14 +97,14 @@ export default function AdvancedDataTable({ data = [] }) {
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  No results.
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      {data.length > 0 && (
+      {showPagination && data.length > 0 && (
         <div className='flex items-center justify-end space-x-2 py-4'>
           <div className='flex-1 text-sm text-muted-foreground'>{table.getFilteredRowModel().rows.length} row(s) total.</div>
           <div className='space-x-2'>
