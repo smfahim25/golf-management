@@ -29,11 +29,12 @@
 @custom-variant dark (&:is(.dark *));
 :root {
   /* font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; */
+  /* font-family: 'Tinos', serif; */
 
   /* font-family: "MinervaModern", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif; */
 
-  font-family: 'MinervaModern', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* font-family: 'MinervaModern', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; */
 
   line-height: 1.5;
   font-weight: 400;
@@ -252,7 +253,7 @@ header a {
 .font-tions {
   font-family: 'Tinos', serif;
 }
-.font-minerva {
+.font-minerva, h1,h2,h3,h4,h5,h6  {
   font-family: 'MinervaModern', serif;
 }
 
