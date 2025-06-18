@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import BookingsTable from "@/components/bookings/bookings-table";
-import SearchBar from "@/components/bookings/search-bar";
-import DateRangePicker from "@/components/bookings/date-range-picker";
-import EditSettingsModal from "@/components/bookings/edit-settings-modal";
-import RestrictBaysModal from "@/components/bookings/restrict-bays-modal";
-import DeleteConfirmModal from "@/components/bookings/delete-confirm-modal";
 import { Download, Settings, Ban } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
+import DeleteConfirmModal from "@/components/Bookings/delete-confirm-modal";
+import RestrictBaysModal from "@/components/Bookings/restrict-bays-modal";
+import EditSettingsModal from "@/components/Bookings/edit-settings-modal";
+import BookingsTable from "@/components/Bookings/bookings-table";
+import SearchBar from "@/components/Bookings/search-bar";
+import DateRangePicker from "@/components/Bookings/date-range-picker";
 
 const mockBookings = [
   {
