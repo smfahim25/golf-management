@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import DatePicker from "../BookingCalendar/date-picker";
 import { X } from "lucide-react";
+import DatePicker from "@/components/BookingCalendar/date-picker";
 
 export default function DateRangePicker({ dateRange, onDateRangeChange }) {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);

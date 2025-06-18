@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
-import DatePicker from "../BookingCalendar/date-picker";
+import DatePicker from "@/components/BookingCalendar/date-picker";
 
 export default function RestrictBaysModal({ onClose }) {
   const [showDatePicker, setShowDatePicker] = useState(false);

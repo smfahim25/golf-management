@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import BookingsTable from "@/components/bookings/bookings-table";
-import DeleteConfirmModal from "@/components/bookings/delete-confirm-modal";
-import SearchBarBooking from "@/components/bookings/search-bar";
+import SearchBarBooking from "../components/bookings/search-bar";
+import BookingsTable from "../components/bookings/bookings-table";
+import DeleteConfirmModal from "../components/bookings/delete-confirm-modal";
 
 const mockBookings = [
   {
