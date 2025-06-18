@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { Download, Settings, Ban } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
-import { DeleteConfirmModal } from "@/components/bookings/delete-confirm-modal";
-import { RestrictBaysModal } from "@/components/bookings/restrict-bays-modal";
-import { EditSettingsModal } from "@/components/bookings/edit-settings-modal";
-import { BookingsTable } from "@/components/bookings/bookings-table";
-import { DateRangePicker } from "@/components/bookings/date-range-picker";
-import { SearchBarBooking } from "@/components/bookings/search-bar";
+import DeleteConfirmModal from "../../../../components/bookings/delete-confirm-modal";
+import RestrictBaysModal from "@/components/bookings/restrict-bays-modal";
+import EditSettingsModal from "@/components/bookings/edit-settings-modal";
+import BookingsTable from "@/components/bookings/bookings-table";
+import DateRangePicker from "@/components/bookings/date-range-picker";
+import SearchBarBooking from "@/components/bookings/search-bar";
 
 const mockBookings = [
   {
