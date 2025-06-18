@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import BookingsTable from "@/components/bookings/bookings-table";
-import SearchBar from "@/components/bookings/search-bar";
 import DeleteConfirmModal from "@/components/bookings/delete-confirm-modal";
+import SearchBarBooking from "@/components/bookings/search-bar";
 
 const mockBookings = [
   {
@@ -102,7 +102,7 @@ export default function Page() {
 
           {/* Search */}
           <div className="mt-4">
-            <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            <SearchBarBooking value={searchTerm} onChange={setSearchTerm} />
           </div>
         </div>
 
