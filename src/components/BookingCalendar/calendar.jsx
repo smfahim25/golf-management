@@ -111,17 +111,14 @@ export default function Calendar({
     }
 
     const booking = bookings.find((booking) => {
-      // Check date match
       if (booking.date !== selectedDate) {
         return false;
       }
 
-      // Check bay match
       if (!bayMatches(booking.bay, bay)) {
         return false;
       }
 
-      // Check if this is the start time slot
       if (booking.startTime !== time) {
         return false;
       }

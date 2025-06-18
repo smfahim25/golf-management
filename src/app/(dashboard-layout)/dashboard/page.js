@@ -17,35 +17,24 @@ export default function Page() {
     return today.toISOString().split("T")[0];
   });
 
-  // Debug localStorage
   useEffect(() => {
-    console.log("🔍 DEBUGGING PAGE COMPONENT:");
     const savedBookings = localStorage.getItem("calendarBookings");
-    console.log("📦 Raw localStorage data:", savedBookings);
 
     if (savedBookings) {
       try {
         const parsed = JSON.parse(savedBookings);
-        console.log("📋 Parsed bookings:", parsed);
+
         setBookings(parsed);
       } catch (error) {
-        console.error("❌ Error parsing localStorage:", error);
         setBookings([]);
       }
     } else {
-      console.log("❌ No bookings found in localStorage");
       setBookings([]);
     }
   }, []);
 
   useEffect(() => {
-    console.log("💾 Saving bookings to localStorage:", bookings);
     localStorage.setItem("calendarBookings", JSON.stringify(bookings));
-  }, [bookings]);
-
-  // Debug state changes
-  useEffect(() => {
-    console.log("🔄 Bookings state updated:", bookings);
   }, [bookings]);
 
   const handleSlotClick = (time, bay) => {
@@ -101,9 +90,6 @@ export default function Page() {
   };
 
   const handleBookingConfirm = (bookingData) => {
-    console.log("✅ Confirming booking:", bookingData);
-
-    // Check for booking conflicts before confirming
     const hasConflict = bookings.some((booking) => {
       if (booking.date !== selectedDate) return false;
       if (booking.bay !== bookingData.bay) return false;
@@ -113,30 +99,26 @@ export default function Page() {
       const newStart = Number.parseInt(bookingData.startTime.split(":")[0]);
       const newEnd = Number.parseInt(bookingData.endTime.split(":")[0]);
 
-      // Check for overlap
       if (existingEnd > existingStart && newEnd > newStart) {
-        // Both are normal bookings (not overnight)
         return (
-          (newStart >= existingStart && newStart < existingEnd) || // New booking starts during existing booking
-          (newEnd > existingStart && newEnd <= existingEnd) || // New booking ends during existing booking
-          (newStart <= existingStart && newEnd >= existingEnd) // New booking completely covers existing booking
+          (newStart >= existingStart && newStart < existingEnd) ||
+          (newEnd > existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
         );
       } else if (existingEnd <= existingStart && newEnd <= newStart) {
-        // Both are overnight bookings
         return (
           newStart >= existingStart ||
-          newStart < existingEnd || // New booking starts during existing booking
+          newStart < existingEnd ||
           newEnd > existingStart ||
-          newEnd <= existingEnd || // New booking ends during existing booking
-          (newStart <= existingStart && newEnd >= existingEnd) // New booking completely covers existing booking
+          newEnd <= existingEnd ||
+          (newStart <= existingStart && newEnd >= existingEnd)
         );
       } else {
-        // One is overnight, one is normal
         return (
-          (newStart >= existingStart && newStart < 24) || // New booking starts during existing booking (before midnight)
-          (newEnd > 0 && newEnd <= existingEnd) || // New booking ends during existing booking (after midnight)
-          (existingStart >= newStart && existingStart < 24) || // Existing booking starts during new booking (before midnight)
-          (existingEnd > 0 && existingEnd <= newEnd) // Existing booking ends during new booking (after midnight)
+          (newStart >= existingStart && newStart < 24) ||
+          (newEnd > 0 && newEnd <= existingEnd) ||
+          (existingStart >= newStart && existingStart < 24) ||
+          (existingEnd > 0 && existingEnd <= newEnd)
         );
       }
     });
@@ -154,10 +136,9 @@ export default function Page() {
       date: selectedDate,
     };
 
-    console.log("📝 Creating new booking:", newBooking);
     setBookings((prev) => {
       const updated = [...prev, newBooking];
-      console.log("📋 Updated bookings array:", updated);
+
       return updated;
     });
     setIsModalOpen(false);
@@ -178,7 +159,6 @@ export default function Page() {
   };
 
   const handleDateChange = (newDate) => {
-    console.log("📅 Date changed to:", newDate);
     setSelectedDate(newDate);
   };
 

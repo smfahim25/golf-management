@@ -285,6 +285,10 @@ header a {
   margin-top: 12px;
 }
 
+button {
+  cursor: pointer !important;
+}
+
 @media screen and (max-width: 768px) {
   header {
     display: grid;
