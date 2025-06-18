@@ -3,15 +3,23 @@
 import { useState, useEffect } from "react";
 import { Download, Settings, Ban } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
-const DeleteConfirmModal =
-  require("@/components/bookings/delete-confirm-modal").default;
-const RestrictBaysModal =
-  require("@/components/bookings/restrict-bays-modal").default;
-const EditSettingsModal =
-  require("@/components/bookings/edit-settings-modal").default;
-const BookingsTable = require("@/components/bookings/bookings-table").default;
-const DateRangePicker =
-  require("@/components/bookings/date-range-picker").default;
+import dynamic from "next/dynamic";
+
+const DeleteConfirmModal = dynamic(() =>
+  import("@/components/bookings/delete-confirm-modal")
+);
+const RestrictBaysModal = dynamic(() =>
+  import("@/components/bookings/restrict-bays-modal")
+);
+const EditSettingsModal = dynamic(() =>
+  import("@/components/bookings/edit-settings-modal")
+);
+const BookingsTable = dynamic(() =>
+  import("@/components/bookings/bookings-table")
+);
+const DateRangePicker = dynamic(() =>
+  import("@/components/bookings/date-range-picker")
+);
 
 import SearchBarBooking from "@/components/bookings/search-bar";
 
