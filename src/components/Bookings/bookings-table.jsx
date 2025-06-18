@@ -130,7 +130,7 @@ export default function BookingsTable({
                     <td className="px-3 py-3">
                       <button
                         onClick={() => onDelete(booking)}
-                        className=" text-black px-2 py-1 rounded-md font-medium transition-colors duration-200 flex items-center gap-1 min-w-max"
+                        className="text-red-500 px-2 py-1 rounded-md font-medium transition-colors duration-200 flex items-center gap-1 min-w-max"
                         title="Delete booking"
                       >
                         <Trash2 />

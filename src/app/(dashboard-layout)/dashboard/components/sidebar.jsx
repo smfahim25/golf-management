@@ -1,29 +1,13 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  Home,
-  Receipt,
-  CreditCard,
-  Users2,
-  Shield,
   MessagesSquare,
-  Video,
-  Settings,
-  HelpCircle,
   Menu,
-  ChevronLeft,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   FileText,
-  Bell,
-  UserCog,
-  Lock,
-  Globe,
-  X,
-  User2,
   LandPlot,
   CalendarMinus2,
   UserRoundSearch,
@@ -46,15 +30,9 @@ import {
 } from "@/components/ui/collapsible";
 import { useClientPathname } from "@/hooks/useClientPathName";
 
-// Main navigation items with sublinks
 const navigation = [
-  {
-    name: "Booking Calendar",
-    href: "/dashboard",
-    icon: LandPlot,
-    target: "_self",
-  },
-
+  { name: "Booking Calendar", href: "/dashboard", icon: LandPlot },
+  { name: "My Bookings", href: "/dashboard/my-bookings", icon: CalendarMinus2 },
   {
     name: "Discussion Forum",
     href: "https://links.geneva.com/invite/34716fa4-0b17-4bf8-9b96-309b20600f2f",
@@ -67,21 +45,21 @@ const navigation = [
     icon: UserRoundSearch,
     target: "_blank",
   },
+];
+
+const adminNavigation = [
   {
     name: "Manage Bookings",
-    href: "/dashboard/bookings",
-    icon: CalendarMinus2,
-    target: "_self",
+    href: "/dashboard/all-bookings",
+    icon: LayoutList,
   },
   {
-    name: "Manage Members",
-    href: "/dashboard/members",
-    icon: Users2,
-    target: "_self",
+    name: "Manage Users",
+    href: "/dashboard/users",
+    icon: Users,
   },
 ];
 
-// Bottom navigation items with sublinks
 const bottomNavigation = [
   { name: "Edit Profile", href: "/dashboard/account/profile", icon: FileText },
 ];
@@ -96,39 +74,30 @@ const Sidebar = () => {
   const loggedIn = true;
   const isLoading = false;
 
-  // Auto-collapse on tablet devices (lg breakpoint) but expand on desktop
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width >= 1024 && width < 1280) {
-        // lg breakpoint (tablet)
         setIsCollapsed(true);
       } else if (width >= 1280) {
-        // xl breakpoint and above (desktop)
         setIsCollapsed(false);
       }
-      // For mobile (< 1024px), keep current state
     };
 
-    // Set initial state based on screen size
     handleResize();
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Handle click outside to close mobile sidebar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Only process this for mobile view
-      if (window.innerWidth >= 1024) return; // lg breakpoint
+      if (window.innerWidth >= 1024) return;
 
-      // Check if sidebar is open and click is outside
       if (
         isMobileOpen &&
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target) &&
-        // Exclude the toggle button from this check
         !event.target.closest(".sidebar-toggle")
       ) {
         setIsMobileOpen(false);
@@ -144,13 +113,16 @@ const Sidebar = () => {
   useEffect(() => {
     if (!pathname) return;
 
-    const allNavItems = [...navigation, ...bottomNavigation];
+    const allNavItems = [
+      ...navigation,
+      ...adminNavigation,
+      ...bottomNavigation,
+    ];
     for (const item of allNavItems) {
       if (item.subItems) {
         const hasActiveChild = item.subItems.some((subItem) => {
           if (!subItem.href) return false;
 
-          // Basic path matches
           if (
             pathname === subItem.href ||
             pathname.startsWith(`${subItem.href}/`)
@@ -158,14 +130,12 @@ const Sidebar = () => {
             return true;
           }
 
-          // For create path, check against allowlist
           if (pathname.startsWith(`${subItem.href}/create`)) {
             return createAllowList.some(
               (allowedPath) => subItem.href === allowedPath
             );
           }
 
-          // For edit path, always match
           if (pathname.includes(`${subItem.href}/edit`)) {
             return true;
           }
@@ -180,40 +150,29 @@ const Sidebar = () => {
     }
   }, [pathname]);
 
-  // Toggle a specific nav item's expanded state
   const toggleItem = (name) => {
     setOpenItem((prev) => (prev === name ? null : name));
   };
 
-  // Toggle sidebar collapse state
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  // Paths that should be active when in 'create' mode
-  const createAllowList = [
-    "/dashboard/customization/practice-areas",
-    // Add more paths here in the future
-  ];
+  const createAllowList = ["/dashboard/customization/practice-areas"];
 
-  // Check if a path is active (exact match or starts with path for parent items)
   const isActive = (href) => {
     if (!pathname || !href) return false;
 
-    // Exact match
     if (pathname === href) return true;
 
-    // For 'create' path, only highlight specific paths in the allowlist
     if (pathname.startsWith(href + "/create")) {
       return createAllowList.some((allowedPath) => href === allowedPath);
     }
 
-    // For 'edit' path, highlight all parent paths (works for all routes)
     if (pathname.includes(href + "/edit")) {
       return true;
     }
 
-    // Special case for blogs
     if (
       href === "/dashboard/blogs" &&
       pathname.startsWith("/dashboard/blogs") &&
@@ -225,19 +184,16 @@ const Sidebar = () => {
     return false;
   };
 
-  // Render a navigation item with potential sublinks
   const NavItem = ({ item, isBottom = false, target = "self" }) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isItemActive = item.subItems
       ? item.subItems.some((subItem) => {
           if (!subItem.href || !pathname) return false;
 
-          // Basic path match
           if (pathname === subItem.href) {
             return true;
           }
 
-          // For create path, check against allowlist
           if (pathname.startsWith(`${subItem.href}/create`)) {
             return createAllowList.some(
               (allowedPath) => subItem.href === allowedPath
@@ -274,7 +230,6 @@ const Sidebar = () => {
                   isCollapsed && "justify-center px-2"
                 )}
                 onClick={(e) => {
-                  // Prevent the default behavior to ensure our toggle works
                   e.preventDefault();
                   toggleItem(item.name);
                 }}
@@ -301,7 +256,6 @@ const Sidebar = () => {
                       rel="nofollow"
                       key={subItem.href}
                       href={subItem.href}
-                      target={target}
                       className={cn(
                         "flex items-center rounded-md px-3 py-2 text-sm transition-colors font-medium",
                         isActive(subItem.href, true)
@@ -328,7 +282,6 @@ const Sidebar = () => {
           <Link
             rel="nofollow"
             href={item.href}
-            target={target}
             className={cn(
               "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
               isActive(item.href)
@@ -386,15 +339,6 @@ const Sidebar = () => {
                 isCollapsed && "justify-center px-2"
               )}
             >
-              {!isCollapsed && (
-                <Link
-                  rel="nofollow"
-                  href="/dashboard"
-                  className="flex items-center font-medium"
-                >
-                  <span className="text-lg font-bold">Dashboard</span>
-                </Link>
-              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -417,9 +361,33 @@ const Sidebar = () => {
           </div>
           <div className="flex-1 overflow-auto border-r border-gray-100">
             <nav className="flex-1 space-y-1 px-5 py-4">
+              {/* Main Dashboard Section */}
+              {!isCollapsed && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Dashboard
+                  </h3>
+                </div>
+              )}
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} target={item.target} />
               ))}
+
+              {/* Admin Section */}
+              {loggedIn && !isLoading && (
+                <>
+                  {!isCollapsed && (
+                    <div className="mt-6 mb-4">
+                      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        Admin
+                      </h3>
+                    </div>
+                  )}
+                  {adminNavigation.map((item) => (
+                    <NavItem key={item.name} item={item} />
+                  ))}
+                </>
+              )}
             </nav>
           </div>
           {loggedIn && !isLoading && (
@@ -429,7 +397,8 @@ const Sidebar = () => {
                   <NavItem key={item.name} item={item} isBottom />
                 ))}
                 <button className="text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md">
-                  <LogOut className="w-4 h-4" /> Logout
+                  <LogOut className="w-4 h-4" />
+                  {!isCollapsed && "Logout"}
                 </button>
               </nav>
             </div>

@@ -269,14 +269,14 @@ export default function UsersTable({
                     <div className="w-32 flex items-center justify-center">
                       <button
                         onClick={() => onEdit(user)}
-                        className=" text-black px-2 py-1 rounded font-medium transition-colors duration-200"
+                        className=" text-indigo-500 px-2 py-1 rounded font-medium transition-colors duration-200"
                         title="Edit user"
                       >
                         <SquarePen />
                       </button>
                       <button
                         onClick={() => onDelete(user)}
-                        className=" text-black px-2 py-1 rounded font-medium transition-colors duration-200"
+                        className=" text-red-500 px-2 py-1 rounded font-medium transition-colors duration-200"
                         title="Delete user"
                       >
                         <Trash2 />
