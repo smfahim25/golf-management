@@ -14,6 +14,7 @@ import {
   LayoutList,
   Users,
   LogOut,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,11 @@ const navigation = [
 ];
 
 const adminNavigation = [
+  {
+    name: "Clubs",
+    href: "/dashboard/clubs",
+    icon: Boxes,
+  },
   {
     name: "Manage Bookings",
     href: "/dashboard/all-bookings",
