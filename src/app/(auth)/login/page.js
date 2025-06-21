@@ -51,11 +51,9 @@ export default function LoginPage() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      console.log("Form submitted successfully:", formData);
       const response = await login(formData.email, formData.password);
       if (response) {
         router.push("/dashboard");
-        console.log("Login successful:", response);
       } else {
         console.error("Login failed");
       }

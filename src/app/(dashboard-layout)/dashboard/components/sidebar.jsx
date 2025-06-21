@@ -30,6 +30,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useClientPathname } from "@/hooks/useClientPathName";
+import useAuthStore from "@/stores/AuthStore";
 
 const navigation = [
   { name: "Booking Calendar", href: "/dashboard", icon: LandPlot },
@@ -76,6 +77,7 @@ const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openItem, setOpenItem] = useState(null);
   const sidebarRef = useRef(null);
+  const { user, logout } = useAuthStore();
 
   const loggedIn = true;
   const isLoading = false;
@@ -402,7 +404,10 @@ const Sidebar = () => {
                 {bottomNavigation.map((item) => (
                   <NavItem key={item.name} item={item} isBottom />
                 ))}
-                <button className="text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md">
+                <button
+                  onClick={logout}
+                  className="text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md"
+                >
                   <LogOut className="w-4 h-4" />
                   {!isCollapsed && "Logout"}
                 </button>

@@ -23,18 +23,6 @@ const useAuthStore = create((set) => ({
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Registration failed");
-
-      const { accessToken, role, ...userDetails } = data.data;
-
-      localStorage.setItem("user", JSON.stringify({ ...userDetails, role }));
-      Cookies.set("token", accessToken, { expires: 7 });
-      Cookies.set("role", role, { expires: 7 });
-
-      set({
-        user: { ...userDetails, role },
-        token: accessToken,
-        isLoading: false,
-      });
       return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });

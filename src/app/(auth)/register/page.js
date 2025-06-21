@@ -96,6 +96,7 @@ export default function RegisterForm() {
       });
 
       if (result) {
+        router.push("/login");
         console.log("Registration successful:", result);
       } else {
         console.log("Registration failed.");
