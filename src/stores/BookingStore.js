@@ -115,7 +115,7 @@ const useBookingStore = create((set) => ({
       const params = new URLSearchParams({
         date,
         club: clubId,
-        bay,
+        ...(bay && { bay }),
       }).toString();
 
       const res = await fetch(`${API_BASE}/bookings/availability?${params}`, {
@@ -127,9 +127,12 @@ const useBookingStore = create((set) => ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.message || "Failed to check availability");
-      set({ availability: data.data, isLoading: false });
+
+      set({ availability: data, isLoading: false });
+      return data.data || data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
+      return [];
     }
   },
 }));

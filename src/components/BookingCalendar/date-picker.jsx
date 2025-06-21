@@ -60,12 +60,20 @@ export default function DatePicker({ selectedDate, onDateSelect, onClose }) {
   };
 
   const handleDateClick = (date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    // Use local date methods to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
     onDateSelect(dateStr);
   };
 
   const isSelectedDate = (date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    // Use local date methods for comparison
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
     return dateStr === selectedDate;
   };
 

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, CalendarIcon, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CalendarIcon,
+  Plus,
+  Building2,
+  ChevronDown,
+} from "lucide-react";
 import DatePicker from "./date-picker";
 
 export default function Calendar({
@@ -11,11 +18,21 @@ export default function Calendar({
   bookings,
   selectedDate,
   onDateChange,
+  selectedClub,
+  clubs,
+  onClubChange,
+  availability,
+  isLoadingAvailability,
 }) {
-  const [selectedBay, setSelectedBay] = useState("Both");
+  const [selectedBayView, setSelectedBayView] = useState("Both");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showClubDropdown, setShowClubDropdown] = useState(false);
+  const [bayStartIndex, setBayStartIndex] = useState(0);
+
   const datePickerRef = useRef(null);
   const dateButtonRef = useRef(null);
+  const clubDropdownRef = useRef(null);
+  const clubButtonRef = useRef(null);
 
   const timeSlots = [
     "01:00",
@@ -43,6 +60,22 @@ export default function Calendar({
     "23:00",
     "00:00",
   ];
+
+  // Get current club's bays
+  const clubBays = selectedClub?.bays || [];
+
+  // Calculate visible bays (show 2 at a time)
+  const baysPerView = 2;
+  const visibleBays =
+    selectedBayView === "Both"
+      ? clubBays.slice(bayStartIndex, bayStartIndex + baysPerView)
+      : [selectedBayView];
+
+  // Bay navigation options - only show current visible bays + Both option
+  const bayViewOptions =
+    selectedBayView === "Both"
+      ? ["Both", ...visibleBays]
+      : ["Both", ...clubBays];
 
   const formatTime = (time) => {
     const hour = Number.parseInt(time.split(":")[0]);
@@ -88,45 +121,35 @@ export default function Calendar({
     onDateChange(todayStr);
   };
 
+  // Bay navigation functions
+  const goToPreviousBays = () => {
+    setBayStartIndex(Math.max(0, bayStartIndex - baysPerView));
+  };
+
+  const goToNextBays = () => {
+    setBayStartIndex(
+      Math.min(clubBays.length - baysPerView, bayStartIndex + baysPerView)
+    );
+  };
+
+  const canGoToPreviousBays = bayStartIndex > 0;
+  const canGoToNextBays = bayStartIndex + baysPerView < clubBays.length;
+
   // Enhanced bay matching function
   const bayMatches = (bookingBay, slotBay) => {
-    // Normalize bay names for comparison
-    const normalize = (bay) => {
-      if (!bay) return "";
-      const str = bay.toString().toLowerCase();
-      if (str.includes("bay 1") || str === "1" || str === "bay1") return "bay1";
-      if (str.includes("bay 2") || str === "2" || str === "bay2") return "bay2";
-      return str;
-    };
-
-    const normalizedBookingBay = normalize(bookingBay);
-    const normalizedSlotBay = normalize(slotBay);
-
-    return normalizedBookingBay === normalizedSlotBay;
+    if (!bookingBay || !slotBay) return false;
+    return bookingBay.toLowerCase() === slotBay.toLowerCase();
   };
 
   const getBookingForSlot = (time, bay) => {
-    if (!bookings || bookings.length === 0) {
-      return null;
-    }
+    if (!bookings || bookings.length === 0) return null;
 
-    const booking = bookings.find((booking) => {
-      if (booking.date !== selectedDate) {
-        return false;
-      }
-
-      if (!bayMatches(booking.bay, bay)) {
-        return false;
-      }
-
-      if (booking.startTime !== time) {
-        return false;
-      }
-
+    return bookings.find((booking) => {
+      if (booking.date !== selectedDate) return false;
+      if (!bayMatches(booking.bay, bay)) return false;
+      if (booking.startTime !== time) return false;
       return true;
     });
-
-    return booking;
   };
 
   const isBookingInSlot = (time, bay) => {
@@ -159,6 +182,28 @@ export default function Calendar({
     return end - start;
   };
 
+  // Check if slot is available based on API availability data
+  const isSlotAvailable = (time, bay) => {
+    if (!availability || !Array.isArray(availability)) return true;
+
+    const isBooked = availability.some((booking) => {
+      if (booking.bay !== bay) return false;
+      if (booking.club !== selectedClub?._id) return false;
+
+      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
+      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
+      const slotHour = Number.parseInt(time.split(":")[0]);
+
+      if (bookingEnd > bookingStart) {
+        return slotHour >= bookingStart && slotHour < bookingEnd;
+      } else {
+        return slotHour >= bookingStart || slotHour < bookingEnd;
+      }
+    });
+
+    return !isBooked;
+  };
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -181,9 +226,38 @@ export default function Calendar({
     };
   }, [showDatePicker]);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        showClubDropdown &&
+        clubDropdownRef.current &&
+        !clubDropdownRef.current.contains(event.target) &&
+        clubButtonRef.current &&
+        !clubButtonRef.current.contains(event.target)
+      ) {
+        setShowClubDropdown(false);
+      }
+    }
+
+    if (showClubDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showClubDropdown]);
+
+  // Reset bay index when club changes
+  useEffect(() => {
+    setBayStartIndex(0);
+    setSelectedBayView("Both");
+  }, [selectedClub]);
+
   const renderTimeSlot = (time, bay) => {
     const booking = getBookingForSlot(time, bay);
     const isSlotBooked = isBookingInSlot(time, bay);
+    const available = isSlotAvailable(time, bay);
 
     if (booking) {
       const span = getBookingSpan(booking);
@@ -193,14 +267,14 @@ export default function Calendar({
       return (
         <div className="relative h-16">
           <div
-            className="absolute inset-x-1 top-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow-lg flex flex-col justify-between py-2 px-3 border border-green-400"
-            style={{ height: `${span * 64 - 15}px` }}
+            className="absolute inset-0 bg-green-500 text-white flex flex-col justify-between p-2"
+            style={{ height: `${span * 64}px` }}
           >
             <div className="flex-1">
-              <div className="text-sm font-semibold truncate">
+              <div className="text-xs font-medium truncate">
                 👤 {displayName}
               </div>
-              <div className="text-sm opacity-90">
+              <div className="text-xs opacity-90">
                 {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
               </div>
             </div>
@@ -209,27 +283,23 @@ export default function Calendar({
                 e.stopPropagation();
                 onJoinSlotClick(booking);
               }}
-              className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-all duration-200 self-end -mt-6 -mr-3 cursor-pointer shadow-md absolute bottom-1 right-3 z-10 w-8 h-8"
+              className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
             >
-              <Plus size={16} className="text-gray-700" />
+              <Plus size={12} className="text-gray-700" />
             </button>
           </div>
         </div>
       );
-    } else if (isSlotBooked) {
-      return <div className="h-16 border-b border-gray-100 bg-green-50"></div>;
+    } else if (isSlotBooked || !available) {
+      return <div className="h-16 bg-gray-100"></div>;
     } else {
       return (
         <button
           onClick={() => onSlotClick(time, bay)}
-          className="w-full h-16 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 border-b border-gray-100 group cursor-pointer"
+          className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
         >
-          <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <div className="w-8 h-8 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
-              <span className="text-white text-lg">
-                <Plus />
-              </span>
-            </div>
+          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Plus className="text-white w-4 h-4" />
           </div>
         </button>
       );
@@ -237,22 +307,23 @@ export default function Calendar({
   };
 
   return (
-    <div className="bg-white overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200">
+    <div className="bg-white">
+      {/* Header Controls */}
+      <div className="bg-gray-50 p-6 border-b border-gray-200">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <button
             onClick={onBookSlotClick}
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200"
           >
             Book a Slot
           </button>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Date Navigation */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={goToPreviousDay}
-                className="p-2 hover:bg-white hover:shadow-md rounded-lg transition-all duration-200"
+                className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-600" />
               </button>
@@ -260,7 +331,7 @@ export default function Calendar({
               <div className="flex items-center space-x-3">
                 <button
                   onClick={goToToday}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium"
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium"
                 >
                   Today
                 </button>
@@ -269,7 +340,7 @@ export default function Calendar({
                   <button
                     ref={dateButtonRef}
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium"
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium"
                   >
                     <CalendarIcon className="w-4 h-4 text-gray-500" />
                     <span>{formatDate(selectedDate)}</span>
@@ -295,93 +366,198 @@ export default function Calendar({
 
               <button
                 onClick={goToNextDay}
-                className="p-2 hover:bg-white hover:shadow-md rounded-lg transition-all duration-200"
+                className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
               >
                 <ChevronRight className="w-5 h-5 text-gray-600" />
               </button>
             </div>
 
-            {/* Bay Selection */}
-            <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
-              {["Bay 1", "Bay 2", "Both"].map((bay) => (
-                <button
-                  key={bay}
-                  onClick={() => setSelectedBay(bay)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    selectedBay === bay
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
+            {/* Club Selection */}
+            <div className="relative">
+              <button
+                ref={clubButtonRef}
+                onClick={() => setShowClubDropdown(!showClubDropdown)}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium bg-white"
+              >
+                <Building2 className="w-4 h-4 text-gray-500" />
+                <span>{selectedClub?.name || "Select Club"}</span>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              </button>
+
+              {showClubDropdown && (
+                <div
+                  ref={clubDropdownRef}
+                  className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[200px] overflow-hidden"
                 >
-                  {bay}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-full">
-          {/* Header Row */}
-          <div
-            className={`grid ${
-              selectedBay === "Both"
-                ? "grid-cols-[100px_1fr_1fr]"
-                : "grid-cols-[100px_1fr]"
-            } border-b bg-gradient-to-r from-gray-50 to-gray-100`}
-          >
-            <div className="p-4 text-sm font-semibold text-gray-600 border-r border-gray-200 bg-gray-100">
-              GMT-08
-            </div>
-            {selectedBay === "Both" ? (
-              <>
-                <div className="p-4 text-center text-sm font-semibold text-gray-900 border-r border-gray-200">
-                  Bay 1
-                </div>
-                <div className="p-4 text-center text-sm font-semibold text-gray-900">
-                  Bay 2
-                </div>
-              </>
-            ) : (
-              <div className="p-4 text-center text-sm font-semibold text-gray-900">
-                {selectedBay}
-              </div>
-            )}
-          </div>
-
-          {/* Time Slots */}
-          {timeSlots.map((time) => (
-            <div
-              key={time}
-              className={`grid ${
-                selectedBay === "Both"
-                  ? "grid-cols-[100px_1fr_1fr]"
-                  : "grid-cols-[100px_1fr]"
-              } hover:bg-gray-50 transition-colors duration-150`}
-            >
-              <div className="p-4 text-sm text-gray-600 border-r border-gray-200 bg-gray-50 flex items-center">
-                <span className="font-medium">{formatTime(time)}</span>
-              </div>
-
-              {selectedBay === "Both" ? (
-                <>
-                  <div className="border-r border-gray-200 relative">
-                    {renderTimeSlot(time, "Bay 1")}
-                  </div>
-                  <div className="relative">
-                    {renderTimeSlot(time, "Bay 2")}
-                  </div>
-                </>
-              ) : (
-                <div className="relative">
-                  {renderTimeSlot(time, selectedBay)}
+                  {clubs.map((club) => (
+                    <button
+                      key={club._id}
+                      onClick={() => {
+                        onClubChange(club);
+                        setShowClubDropdown(false);
+                      }}
+                      className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-200 font-medium text-sm ${
+                        selectedClub?._id === club._id ? "bg-gray-50" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{club.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {club.bays.length} bays
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-          ))}
+
+            {/* Bay Selection with Navigation */}
+            <div className="flex items-center gap-2">
+              {/* Bay Navigation */}
+              {selectedBayView === "Both" && clubBays.length > baysPerView && (
+                <div className="flex items-center gap-1 mr-2">
+                  <button
+                    onClick={goToPreviousBays}
+                    disabled={!canGoToPreviousBays}
+                    className={`p-2 rounded transition-colors duration-200 ${
+                      canGoToPreviousBays
+                        ? "hover:bg-gray-200 text-gray-600"
+                        : "text-gray-300 cursor-not-allowed"
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-gray-500 px-2">
+                    {bayStartIndex + 1}-
+                    {Math.min(bayStartIndex + baysPerView, clubBays.length)} of{" "}
+                    {clubBays.length}
+                  </span>
+                  <button
+                    onClick={goToNextBays}
+                    disabled={!canGoToNextBays}
+                    className={`p-2 rounded transition-colors duration-200 ${
+                      canGoToNextBays
+                        ? "hover:bg-gray-200 text-gray-600"
+                        : "text-gray-300 cursor-not-allowed"
+                    }`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Bay Selection */}
+              <div className="flex items-center gap-1 bg-white rounded p-1 border border-gray-200">
+                <button
+                  onClick={() => setSelectedBayView("Both")}
+                  className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
+                    selectedBayView === "Both"
+                      ? "bg-blue-500 text-white"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  Both
+                </button>
+                {selectedBayView === "Both"
+                  ? // Show only current visible bays when "Both" is selected
+                    visibleBays.map((bay) => (
+                      <button
+                        key={bay}
+                        onClick={() => setSelectedBayView(bay)}
+                        className="px-4 py-2 rounded text-sm font-medium transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      >
+                        {bay}
+                      </button>
+                    ))
+                  : // Show all bays when individual bay is selected
+                    clubBays.map((bay) => (
+                      <button
+                        key={bay}
+                        onClick={() => setSelectedBayView(bay)}
+                        className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
+                          selectedBayView === bay
+                            ? "bg-blue-500 text-white"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        }`}
+                      >
+                        {bay}
+                      </button>
+                    ))}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Loading indicator */}
+        {isLoadingAvailability && (
+          <div className="mt-4 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-sm text-gray-600">
+              Checking availability...
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Calendar Grid - Exact Image Layout */}
+      <div className="border border-gray-300">
+        <table className="w-full border-collapse">
+          {/* Header Row */}
+          <thead>
+            <tr>
+              <th className="border border-gray-300 p-4 text-left text-sm font-medium text-gray-600 bg-white w-24">
+                GMT-08
+              </th>
+              {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                visibleBays.map((bay) => (
+                  <th
+                    key={bay}
+                    className="border border-gray-300 p-4 text-center text-sm font-medium text-gray-900 bg-white"
+                  >
+                    {bay}
+                  </th>
+                ))
+              ) : (
+                <th className="border border-gray-300 p-4 text-center text-sm font-medium text-gray-900 bg-white">
+                  {selectedBayView === "Both"
+                    ? visibleBays[0]
+                    : selectedBayView}
+                </th>
+              )}
+            </tr>
+          </thead>
+
+          {/* Time Slots */}
+          <tbody>
+            {timeSlots.map((time) => (
+              <tr key={time}>
+                <td className="border border-gray-300 p-4 text-sm text-gray-600 bg-white w-24">
+                  {formatTime(time)}
+                </td>
+                {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                  visibleBays.map((bay) => (
+                    <td
+                      key={bay}
+                      className="border border-gray-300 p-0 bg-white h-16"
+                    >
+                      {renderTimeSlot(time, bay)}
+                    </td>
+                  ))
+                ) : (
+                  <td className="border border-gray-300 p-0 bg-white h-16">
+                    {renderTimeSlot(
+                      time,
+                      selectedBayView === "Both"
+                        ? visibleBays[0]
+                        : selectedBayView
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
