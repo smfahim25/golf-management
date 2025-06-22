@@ -10,12 +10,12 @@ import {
   ChevronDown,
 } from "lucide-react";
 import DatePicker from "./date-picker";
+import useUserStore from "@/stores/UserStore";
 
 export default function Calendar({
   onSlotClick,
   onBookSlotClick,
   onJoinSlotClick,
-  bookings,
   selectedDate,
   onDateChange,
   selectedClub,
@@ -33,6 +33,8 @@ export default function Calendar({
   const dateButtonRef = useRef(null);
   const clubDropdownRef = useRef(null);
   const clubButtonRef = useRef(null);
+
+  const { getUserById } = useUserStore();
 
   const timeSlots = [
     "01:00",
@@ -61,21 +63,19 @@ export default function Calendar({
     "00:00",
   ];
 
-  // Get current club's bays
   const clubBays = selectedClub?.bays || [];
 
-  // Calculate visible bays (show 2 at a time)
   const baysPerView = 2;
+
+  const visibleBaysForButtons = clubBays.slice(
+    bayStartIndex,
+    bayStartIndex + baysPerView
+  );
+
   const visibleBays =
     selectedBayView === "Both"
       ? clubBays.slice(bayStartIndex, bayStartIndex + baysPerView)
       : [selectedBayView];
-
-  // Bay navigation options - only show current visible bays + Both option
-  const bayViewOptions =
-    selectedBayView === "Both"
-      ? ["Both", ...visibleBays]
-      : ["Both", ...clubBays];
 
   const formatTime = (time) => {
     const hour = Number.parseInt(time.split(":")[0]);
@@ -95,10 +95,25 @@ export default function Calendar({
     });
   };
 
+  const formatDateMobile = (dateStr) => {
+    const date = new Date(dateStr + "T00:00:00");
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   const goToPreviousDay = () => {
-    const currentDate = new Date(selectedDate + "T00:00:00");
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const currentDate = new Date(year, month - 1, day);
     currentDate.setDate(currentDate.getDate() - 1);
-    const newDate = currentDate.toISOString().split("T")[0];
+
+    const newYear = currentDate.getFullYear();
+    const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const newDay = String(currentDate.getDate()).padStart(2, "0");
+
+    const newDate = `${newYear}-${newMonth}-${newDay}`;
     onDateChange(newDate);
   };
 
@@ -121,7 +136,6 @@ export default function Calendar({
     onDateChange(todayStr);
   };
 
-  // Bay navigation functions
   const goToPreviousBays = () => {
     setBayStartIndex(Math.max(0, bayStartIndex - baysPerView));
   };
@@ -135,29 +149,37 @@ export default function Calendar({
   const canGoToPreviousBays = bayStartIndex > 0;
   const canGoToNextBays = bayStartIndex + baysPerView < clubBays.length;
 
-  // Enhanced bay matching function
-  const bayMatches = (bookingBay, slotBay) => {
-    if (!bookingBay || !slotBay) return false;
-    return bookingBay.toLowerCase() === slotBay.toLowerCase();
-  };
-
   const getBookingForSlot = (time, bay) => {
-    if (!bookings || bookings.length === 0) return null;
+    if (!availability || !Array.isArray(availability)) return null;
 
-    return bookings.find((booking) => {
-      if (booking.date !== selectedDate) return false;
-      if (!bayMatches(booking.bay, bay)) return false;
+    const selectedDateObj = new Date(selectedDate + "T00:00:00");
+
+    return availability.find((booking) => {
+      if (booking.bay !== bay) return false;
+      if (booking.club !== selectedClub?._id) return false;
+
+      // Check if booking date matches selected date
+      const bookingDate = new Date(booking.date);
+      if (bookingDate.toDateString() !== selectedDateObj.toDateString())
+        return false;
+
       if (booking.startTime !== time) return false;
       return true;
     });
   };
 
   const isBookingInSlot = (time, bay) => {
-    if (!bookings || bookings.length === 0) return false;
+    if (!availability || !Array.isArray(availability)) return null;
 
-    return bookings.find((booking) => {
-      if (booking.date !== selectedDate) return false;
-      if (!bayMatches(booking.bay, bay)) return false;
+    const selectedDateObj = new Date(selectedDate + "T00:00:00");
+
+    return availability.find((booking) => {
+      if (booking.bay !== bay) return false;
+      if (booking.club !== selectedClub?._id) return false;
+
+      const bookingDate = new Date(booking.date);
+      if (bookingDate.toDateString() !== selectedDateObj.toDateString())
+        return false;
 
       const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
       const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
@@ -180,28 +202,6 @@ export default function Calendar({
     }
 
     return end - start;
-  };
-
-  // Check if slot is available based on API availability data
-  const isSlotAvailable = (time, bay) => {
-    if (!availability || !Array.isArray(availability)) return true;
-
-    const isBooked = availability.some((booking) => {
-      if (booking.bay !== bay) return false;
-      if (booking.club !== selectedClub?._id) return false;
-
-      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-      const slotHour = Number.parseInt(time.split(":")[0]);
-
-      if (bookingEnd > bookingStart) {
-        return slotHour >= bookingStart && slotHour < bookingEnd;
-      } else {
-        return slotHour >= bookingStart || slotHour < bookingEnd;
-      }
-    });
-
-    return !isBooked;
   };
 
   useEffect(() => {
@@ -248,36 +248,35 @@ export default function Calendar({
     };
   }, [showClubDropdown]);
 
-  // Reset bay index when club changes
   useEffect(() => {
     setBayStartIndex(0);
     setSelectedBayView("Both");
   }, [selectedClub]);
 
-  const renderTimeSlot = (time, bay) => {
+  const renderTimeSlot = async (time, bay) => {
     const booking = getBookingForSlot(time, bay);
     const isSlotBooked = isBookingInSlot(time, bay);
-    const available = isSlotAvailable(time, bay);
 
     if (booking) {
       const span = getBookingSpan(booking);
-      const displayName =
-        booking.bookingType === "member" ? booking.memberName : "Your Booking";
-
+      const displayUserId = booking.userId || "Unknown User";
+      const user = await getUserById(booking.userId);
+      console.log("User data:", user);
       return (
         <div className="relative h-16">
           <div
-            className="absolute inset-0 bg-green-500 text-white flex flex-col justify-between p-2"
-            style={{ height: `${span * 64}px` }}
+            className="absolute inset-0 bg-green-500 rounded-lg text-white font-bold flex flex-col justify-between p-2"
+            style={{ height: `${span * 60}px` }}
           >
             <div className="flex-1">
-              <div className="text-xs font-medium truncate">
-                👤 {displayName}
+              <div className="text-xs sm:text-sm font-medium truncate">
+                👤 User: {displayUserId.slice(-8)}
               </div>
-              <div className="text-xs opacity-90">
+              <div className="text-xs sm:text-sm opacity-90">
                 {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
               </div>
             </div>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -290,48 +289,50 @@ export default function Calendar({
           </div>
         </div>
       );
-    } else if (isSlotBooked || !available) {
-      return <div className="h-16 bg-gray-100"></div>;
-    } else {
-      return (
-        <button
-          onClick={() => onSlotClick(time, bay)}
-          className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
-        >
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Plus className="text-white w-4 h-4" />
-          </div>
-        </button>
-      );
     }
+
+    if (isSlotBooked) {
+      return <div className="h-16 bg-gray-100"></div>;
+    }
+
+    return (
+      <button
+        onClick={() => onSlotClick(time, bay)}
+        className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
+      >
+        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <Plus className="text-white w-3 h-3 sm:w-4 sm:h-4" />
+        </div>
+      </button>
+    );
   };
 
   return (
     <div className="bg-white">
       {/* Header Controls */}
-      <div className="bg-gray-50 p-6 border-b border-gray-200">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="bg-gray-50 p-4 sm:p-4 lg:p-6 border-b border-gray-200">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 lg:gap-4">
           <button
             onClick={onBookSlotClick}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
           >
             Book a Slot
           </button>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col space-y-3 sm:space-y-4 lg:flex-row lg:items-center lg:space-y-0 lg:gap-4">
             {/* Date Navigation */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-between sm:justify-start sm:space-x-3">
               <button
                 onClick={goToPreviousDay}
                 className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </button>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 <button
                   onClick={goToToday}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium"
+                  className="px-3 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium"
                 >
                   Today
                 </button>
@@ -340,10 +341,15 @@ export default function Calendar({
                   <button
                     ref={dateButtonRef}
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium"
+                    className="flex items-center space-x-1 sm:space-x-2 px-2 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium"
                   >
-                    <CalendarIcon className="w-4 h-4 text-gray-500" />
-                    <span>{formatDate(selectedDate)}</span>
+                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                    <span className="hidden sm:inline">
+                      {formatDate(selectedDate)}
+                    </span>
+                    <span className="sm:hidden">
+                      {formatDateMobile(selectedDate)}
+                    </span>
                   </button>
 
                   {showDatePicker && (
@@ -368,7 +374,7 @@ export default function Calendar({
                 onClick={goToNextDay}
                 className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
               >
-                <ChevronRight className="w-5 h-5 text-gray-600" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </button>
             </div>
 
@@ -377,17 +383,21 @@ export default function Calendar({
               <button
                 ref={clubButtonRef}
                 onClick={() => setShowClubDropdown(!showClubDropdown)}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors duration-200 text-sm font-medium bg-white"
+                className="flex items-center justify-between w-full sm:w-auto space-x-2 px-3 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium bg-white min-w-0"
               >
-                <Building2 className="w-4 h-4 text-gray-500" />
-                <span>{selectedClub?.name || "Select Club"}</span>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center space-x-2 min-w-0">
+                  <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                  <span className="truncate">
+                    {selectedClub?.name || "Select Club"}
+                  </span>
+                </div>
+                <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
               </button>
 
               {showClubDropdown && (
                 <div
                   ref={clubDropdownRef}
-                  className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[200px] overflow-hidden"
+                  className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 w-full sm:min-w-[200px] overflow-hidden"
                 >
                   {clubs.map((club) => (
                     <button
@@ -396,13 +406,13 @@ export default function Calendar({
                         onClubChange(club);
                         setShowClubDropdown(false);
                       }}
-                      className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-200 font-medium text-sm ${
+                      className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-200 font-medium text-xs sm:text-sm ${
                         selectedClub?._id === club._id ? "bg-gray-50" : ""
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span>{club.name}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="truncate">{club.name}</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                           {club.bays.length} bays
                         </span>
                       </div>
@@ -413,10 +423,10 @@ export default function Calendar({
             </div>
 
             {/* Bay Selection with Navigation */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2">
               {/* Bay Navigation */}
-              {selectedBayView === "Both" && clubBays.length > baysPerView && (
-                <div className="flex items-center gap-1 mr-2">
+              {clubBays.length > baysPerView && (
+                <div className="flex items-center justify-center gap-1 sm:mr-2">
                   <button
                     onClick={goToPreviousBays}
                     disabled={!canGoToPreviousBays}
@@ -426,7 +436,7 @@ export default function Calendar({
                         : "text-gray-300 cursor-not-allowed"
                     }`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <span className="text-xs text-gray-500 px-2">
                     {bayStartIndex + 1}-
@@ -442,16 +452,16 @@ export default function Calendar({
                         : "text-gray-300 cursor-not-allowed"
                     }`}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               )}
 
               {/* Bay Selection */}
-              <div className="flex items-center gap-1 bg-white rounded p-1 border border-gray-200">
+              <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200 justify-center sm:justify-start">
                 <button
                   onClick={() => setSelectedBayView("Both")}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
+                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
                     selectedBayView === "Both"
                       ? "bg-blue-500 text-white"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -459,31 +469,19 @@ export default function Calendar({
                 >
                   Both
                 </button>
-                {selectedBayView === "Both"
-                  ? // Show only current visible bays when "Both" is selected
-                    visibleBays.map((bay) => (
-                      <button
-                        key={bay}
-                        onClick={() => setSelectedBayView(bay)}
-                        className="px-4 py-2 rounded text-sm font-medium transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                      >
-                        {bay}
-                      </button>
-                    ))
-                  : // Show all bays when individual bay is selected
-                    clubBays.map((bay) => (
-                      <button
-                        key={bay}
-                        onClick={() => setSelectedBayView(bay)}
-                        className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
-                          selectedBayView === bay
-                            ? "bg-blue-500 text-white"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                        }`}
-                      >
-                        {bay}
-                      </button>
-                    ))}
+                {visibleBaysForButtons.map((bay) => (
+                  <button
+                    key={bay}
+                    onClick={() => setSelectedBayView(bay)}
+                    className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
+                      selectedBayView === bay
+                        ? "bg-blue-500 text-white"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    }`}
+                  >
+                    {bay}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -492,34 +490,34 @@ export default function Calendar({
         {/* Loading indicator */}
         {isLoadingAvailability && (
           <div className="mt-4 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-            <span className="ml-2 text-sm text-gray-600">
+            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-xs sm:text-sm text-gray-600">
               Checking availability...
             </span>
           </div>
         )}
       </div>
 
-      {/* Calendar Grid - Exact Image Layout */}
-      <div className="border border-gray-300">
-        <table className="w-full border-collapse">
+      {/* Calendar Grid - Responsive Design */}
+      <div className="border border-gray-300 overflow-x-auto">
+        <table className="w-full border-collapse min-w-[400px] sm:min-w-[500px] lg:min-w-0">
           {/* Header Row */}
-          <thead>
+          <thead className="border-b bg-gradient-to-r from-gray-100 to-gray-200">
             <tr>
-              <th className="border border-gray-300 p-4 text-left text-sm font-medium text-gray-600 bg-white w-24">
+              <th className="border border-gray-300 p-2 sm:p-4 text-left text-xs sm:text-sm font-medium text-gray-600 w-16 sm:w-20 lg:w-24">
                 GMT-08
               </th>
               {selectedBayView === "Both" && visibleBays.length > 1 ? (
                 visibleBays.map((bay) => (
                   <th
                     key={bay}
-                    className="border border-gray-300 p-4 text-center text-sm font-medium text-gray-900 bg-white"
+                    className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[120px] sm:min-w-[150px]"
                   >
                     {bay}
                   </th>
                 ))
               ) : (
-                <th className="border border-gray-300 p-4 text-center text-sm font-medium text-gray-900 bg-white">
+                <th className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[200px] sm:min-w-[250px]">
                   {selectedBayView === "Both"
                     ? visibleBays[0]
                     : selectedBayView}
@@ -532,20 +530,21 @@ export default function Calendar({
           <tbody>
             {timeSlots.map((time) => (
               <tr key={time}>
-                <td className="border border-gray-300 p-4 text-sm text-gray-600 bg-white w-24">
-                  {formatTime(time)}
+                <td className="border border-gray-300 p-2 sm:p-4 text-xs sm:text-sm text-gray-600 bg-white w-16 sm:w-20 lg:w-24">
+                  <span className="hidden sm:inline">{formatTime(time)}</span>
+                  <span className="sm:hidden">{time}</span>
                 </td>
                 {selectedBayView === "Both" && visibleBays.length > 1 ? (
                   visibleBays.map((bay) => (
                     <td
                       key={bay}
-                      className="border border-gray-300 p-0 bg-white h-16"
+                      className="border border-gray-300 p-0 bg-white h-12 sm:h-16"
                     >
                       {renderTimeSlot(time, bay)}
                     </td>
                   ))
                 ) : (
-                  <td className="border border-gray-300 p-0 bg-white h-16">
+                  <td className="border border-gray-300 p-0 bg-white h-12 sm:h-16">
                     {renderTimeSlot(
                       time,
                       selectedBayView === "Both"

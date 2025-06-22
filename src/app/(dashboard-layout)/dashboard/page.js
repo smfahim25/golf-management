@@ -13,33 +13,31 @@ export default function Page() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [bookings, setBookings] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
   const [selectedClub, setSelectedClub] = useState(null);
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
 
   const { clubs, fetchClubs, isLoading: clubsLoading } = useClubStore();
   const {
     availability,
     checkAvailability,
+    createBooking,
     isLoading: availabilityLoading,
   } = useBookingStore();
 
-  // Fetch clubs on component mount
   useEffect(() => {
     fetchClubs();
   }, [fetchClubs]);
 
-  // Auto-select first club when clubs are loaded
   useEffect(() => {
     if (clubs.length > 0 && !selectedClub) {
       setSelectedClub(clubs[0]);
     }
   }, [clubs, selectedClub]);
 
-  // Check availability when club, date changes
   useEffect(() => {
     if (selectedClub && selectedDate) {
       const loadAvailability = async () => {
@@ -53,30 +51,10 @@ export default function Page() {
     }
   }, [selectedClub, selectedDate, checkAvailability]);
 
-  useEffect(() => {
-    const savedBookings = localStorage.getItem("calendarBookings");
-
-    if (savedBookings) {
-      try {
-        const parsed = JSON.parse(savedBookings);
-        setBookings(parsed);
-      } catch (error) {
-        setBookings([]);
-      }
-    } else {
-      setBookings([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("calendarBookings", JSON.stringify(bookings));
-  }, [bookings]);
-
   const handleSlotClick = (time, bay) => {
-    const isSlotBooked = bookings.some((booking) => {
-      if (booking.date !== selectedDate) return false;
+    const isSlotBooked = availability.some((booking) => {
       if (booking.bay !== bay) return false;
-      if (booking.clubId !== selectedClub?._id) return false;
+      if (booking.club !== selectedClub?._id) return false;
 
       const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
       const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
@@ -132,11 +110,10 @@ export default function Page() {
     setSelectedBooking(null);
   };
 
-  const handleBookingConfirm = (bookingData) => {
-    const hasConflict = bookings.some((booking) => {
-      if (booking.date !== selectedDate) return false;
+  const handleBookingConfirm = async (bookingData) => {
+    const hasConflict = availability.some((booking) => {
       if (booking.bay !== bookingData.bay) return false;
-      if (booking.clubId !== selectedClub?._id) return false;
+      if (booking.club !== selectedClub?._id) return false;
 
       const existingStart = Number.parseInt(booking.startTime.split(":")[0]);
       const existingEnd = Number.parseInt(booking.endTime.split(":")[0]);
@@ -174,20 +151,39 @@ export default function Page() {
       return;
     }
 
-    const newBooking = {
-      id: Date.now().toString(),
-      ...bookingData,
-      date: selectedDate,
-      clubId: selectedClub._id,
-    };
+    setIsBookingLoading(true);
 
-    setBookings((prev) => {
-      const updated = [...prev, newBooking];
-      return updated;
-    });
-    setIsModalOpen(false);
-    setSelectedSlot(null);
-    toast.success("Booking confirmed successfully!");
+    try {
+      const apiBookingData = {
+        date: selectedDate,
+        bookedFor: bookingData.bookingType === "yourself" ? "self" : "member",
+        memberName: bookingData.memberName || undefined,
+        playingTime: bookingData.playingTime,
+        numberOfPlayers: bookingData.numberOfPlayers === "single" ? 1 : 2,
+        playerType:
+          bookingData.numberOfPlayers === "single" ? "single" : "guest",
+        bay: bookingData.bay,
+        club: bookingData.clubId,
+        startTime: bookingData.startTime,
+        endTime: bookingData.endTime,
+      };
+
+      await createBooking(apiBookingData);
+
+      setIsModalOpen(false);
+      setSelectedSlot(null);
+
+      if (selectedClub && selectedDate) {
+        await checkAvailability(selectedDate, selectedClub._id);
+      }
+    } catch (error) {
+      console.error("Failed to create booking:", error);
+      toast.error(
+        error.message || "Failed to create booking. Please try again."
+      );
+    } finally {
+      setIsBookingLoading(false);
+    }
   };
 
   const handleJoinSlotConfirm = (joinData) => {
@@ -254,9 +250,7 @@ export default function Page() {
           onSlotClick={handleSlotClick}
           onBookSlotClick={handleBookSlotClick}
           onJoinSlotClick={handleJoinSlotClick}
-          bookings={bookings.filter(
-            (booking) => booking.clubId === selectedClub._id
-          )}
+          bookings={availability} // Pass availability data as bookings
           selectedDate={selectedDate}
           onDateChange={handleDateChange}
           selectedClub={selectedClub}
@@ -274,11 +268,10 @@ export default function Page() {
             onConfirm={handleBookingConfirm}
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
-            existingBookings={bookings.filter(
-              (booking) => booking.clubId === selectedClub._id
-            )}
+            existingBookings={availability} // Pass availability data as existing bookings
             selectedClub={selectedClub}
             clubs={clubs}
+            isBookingLoading={isBookingLoading}
           />
         )}
 

@@ -74,9 +74,6 @@ export default function BookingModal({
     "23:00",
   ];
 
-  // Get available bays from selected club
-  const availableBays = selectedClub?.bays || [];
-
   const formatTime = (time) => {
     const hour = Number.parseInt(time.split(":")[0]);
     if (hour === 0) return "12:00 AM";
@@ -283,11 +280,10 @@ export default function BookingModal({
     if (selectedSlot) {
       setStartTime(selectedSlot.time || "");
       setSelectedBay(selectedSlot.bay || "");
-      setSelectedModalClub(selectedClub); // Set the modal club to current selected club
+      setSelectedModalClub(selectedClub);
     }
   }, [selectedSlot, selectedClub]);
 
-  // Check availability when modal club or date changes
   useEffect(() => {
     if (selectedModalClub && selectedDate) {
       const loadAvailability = async () => {
@@ -358,41 +354,39 @@ export default function BookingModal({
     onConfirm(bookingData);
   };
 
-  const getAvailableTimeSlots = () => {
-    if (!selectedModalClub || !selectedBay) return [];
+  const isTimeSlotAvailable = (time) => {
+    if (!selectedModalClub || !selectedBay) return false;
 
-    return timeSlots.filter((time) => {
-      const hour = Number.parseInt(time.split(":")[0]);
+    const hour = Number.parseInt(time.split(":")[0]);
 
-      // Check against API availability data
-      const isSlotBooked = modalAvailability.some((booking) => {
-        if (booking.bay !== selectedBay) return false;
-        if (booking.club !== selectedModalClub._id) return false;
+    // Check against API availability data
+    const isSlotBooked = modalAvailability.some((booking) => {
+      if (booking.bay !== selectedBay) return false;
+      if (booking.club !== selectedModalClub._id) return false;
 
-        const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
-        const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-        const potentialEnd = (hour + playingTime) % 24;
+      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
+      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
+      const potentialEnd = (hour + playingTime) % 24;
 
-        // Check if the potential booking would conflict
-        if (bookingEnd > bookingStart) {
-          return (
-            (hour >= bookingStart && hour < bookingEnd) ||
-            (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
-            (hour <= bookingStart && potentialEnd >= bookingEnd)
-          );
-        } else {
-          return (
-            hour >= bookingStart ||
-            hour < bookingEnd ||
-            potentialEnd > bookingStart ||
-            potentialEnd <= bookingEnd ||
-            (hour <= bookingStart && potentialEnd >= bookingEnd)
-          );
-        }
-      });
-
-      return !isSlotBooked;
+      // Check if the potential booking would conflict
+      if (bookingEnd > bookingStart) {
+        return (
+          (hour >= bookingStart && hour < bookingEnd) ||
+          (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
+          (hour <= bookingStart && potentialEnd >= bookingEnd)
+        );
+      } else {
+        return (
+          hour >= bookingStart ||
+          hour < bookingEnd ||
+          potentialEnd > bookingStart ||
+          potentialEnd <= bookingEnd ||
+          (hour <= bookingStart && potentialEnd >= bookingEnd)
+        );
+      }
     });
+
+    return !isSlotBooked;
   };
 
   if (!isOpen) return null;
@@ -412,19 +406,6 @@ export default function BookingModal({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Selected Club Info */}
-          {selectedModalClub && (
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-1">
-                Selected Club
-              </h3>
-              <p className="text-blue-700">{selectedModalClub.name}</p>
-              <p className="text-blue-600 text-sm">
-                {selectedModalClub.bays.length} bays available
-              </p>
-            </div>
-          )}
-
           {/* Club Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -706,65 +687,91 @@ export default function BookingModal({
             </label>
             <div className="space-y-3">
               {/* Start Time */}
-              <div className="relative">
-                <button
-                  ref={startTimeButtonRef}
-                  onClick={() =>
-                    setShowStartTimeDropdown(!showStartTimeDropdown)
-                  }
-                  className="w-full p-4 border border-gray-300 rounded-xl text-left flex items-center justify-between hover:border-blue-400 hover:shadow-md transition-all duration-200 bg-gray-50 cursor-pointer"
-                >
-                  <span
-                    className={`font-medium ${
-                      startTime ? "text-gray-900" : "text-gray-500"
-                    }`}
-                  >
-                    {startTime ? formatTime(startTime) : "Select Start Time"}
+              {availabilityLoading ? (
+                <div className="w-full p-4 border border-gray-300 rounded-xl flex items-center justify-center bg-gray-50">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                  <span className="text-gray-600">
+                    Loading available times...
                   </span>
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
-                </button>
-
-                {showStartTimeDropdown && (
-                  <div
-                    ref={startTimeDropdownRef}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-xl shadow-lg max-h-48 overflow-y-auto z-10"
+                </div>
+              ) : (
+                <div className="relative">
+                  <button
+                    ref={startTimeButtonRef}
+                    onClick={() =>
+                      setShowStartTimeDropdown(!showStartTimeDropdown)
+                    }
+                    className="w-full p-4 border border-gray-300 rounded-xl text-left flex items-center justify-between hover:border-blue-400 hover:shadow-md transition-all duration-200 bg-gray-50 cursor-pointer"
                   >
-                    {getAvailableTimeSlots().map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => {
-                          setStartTime(time);
-                          setShowStartTimeDropdown(false);
-                        }}
-                        className="w-full p-3 text-left hover:bg-blue-50 transition-colors duration-200 font-medium"
-                      >
-                        {formatTime(time)}
-                      </button>
-                    ))}
+                    <span
+                      className={`font-medium ${
+                        startTime ? "text-gray-900" : "text-gray-500"
+                      }`}
+                    >
+                      {startTime ? formatTime(startTime) : "Select Start Time"}
+                    </span>
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  </button>
 
-                    {getAvailableTimeSlots().length === 0 && (
-                      <div className="p-3 text-center text-gray-500">
-                        No available time slots for this bay and duration
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                  {showStartTimeDropdown && (
+                    <div
+                      ref={startTimeDropdownRef}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-xl shadow-lg max-h-48 overflow-y-auto z-10"
+                    >
+                      {timeSlots.map((time) => {
+                        const isAvailable = isTimeSlotAvailable(time);
+                        return (
+                          <button
+                            key={time}
+                            onClick={() => {
+                              if (isAvailable) {
+                                setStartTime(time);
+                                setShowStartTimeDropdown(false);
+                              }
+                            }}
+                            disabled={!isAvailable}
+                            className={`w-full p-3 text-left transition-colors duration-200 font-medium ${
+                              isAvailable
+                                ? "hover:bg-blue-50 cursor-pointer"
+                                : "text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {formatTime(time)}
+                            {!isAvailable && (
+                              <span className="text-xs text-gray-400 ml-2">
+                                (Unavailable)
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* End Time - Disabled */}
-              <div className="relative">
-                <div className="w-full p-4 border border-gray-200 rounded-xl text-left flex items-center justify-between bg-gray-100 cursor-not-allowed">
-                  <span className="text-gray-500 font-medium">
-                    {endTime
-                      ? formatTime(endTime)
-                      : "End Time (Auto-calculated)"}
-                  </span>
-                  <div className="text-gray-400 text-sm">🔒</div>
+              {availabilityLoading ? (
+                <div className="w-full p-4 border border-gray-300 rounded-xl flex items-center justify-center bg-gray-50">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                  <span className="text-gray-600">Calculating end time...</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  End time is automatically calculated based on playing duration
-                </p>
-              </div>
+              ) : (
+                <div className="relative">
+                  <div className="w-full p-4 border border-gray-200 rounded-xl text-left flex items-center justify-between bg-gray-100 cursor-not-allowed">
+                    <span className="text-gray-500 font-medium">
+                      {endTime
+                        ? formatTime(endTime)
+                        : "End Time (Auto-calculated)"}
+                    </span>
+                    <div className="text-gray-400 text-sm">🔒</div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    End time is automatically calculated based on playing
+                    duration
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -786,9 +793,9 @@ export default function BookingModal({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={!!conflictWarning}
+              disabled={!!conflictWarning || availabilityLoading}
               className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl cursor-pointer ${
-                conflictWarning
+                conflictWarning || availabilityLoading
                   ? "bg-gray-400 text-white cursor-not-allowed"
                   : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
               }`}

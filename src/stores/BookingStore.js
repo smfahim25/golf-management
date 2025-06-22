@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import Cookies from "js-cookie";
+import toast from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -59,6 +60,7 @@ const useBookingStore = create((set) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create booking");
       set({ isLoading: false });
+      toast.success("Booking created successfully!");
       return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });

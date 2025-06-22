@@ -18,8 +18,6 @@ const ClubManagementUI = () => {
   const [modalMode, setModalMode] = useState("add"); // 'add' or 'edit'
   const [selectedClub, setSelectedClub] = useState(null);
   const [clubToDelete, setClubToDelete] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     bays: [""],
@@ -58,7 +56,6 @@ const ClubManagementUI = () => {
     setShowModal(false);
     setSelectedClub(null);
     setFormData({ name: "", bays: [""] });
-    setIsSubmitting(false);
   };
 
   const openDeleteModal = (club) => {
@@ -69,7 +66,6 @@ const ClubManagementUI = () => {
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setClubToDelete(null);
-    setIsDeleting(false);
   };
 
   const handleInputChange = (e) => {
@@ -284,7 +280,7 @@ const ClubManagementUI = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -367,10 +363,14 @@ const ClubManagementUI = () => {
                 <button
                   type="submit"
                   onClick={handleSubmit}
+                  disabled={isLoading}
                   className="flex-1 px-4 py-3 bg-primary text-white rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <Check size={18} />
                   {modalMode === "add" ? "Create Club" : "Update Club"}
+                  {isLoading && (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  )}
                 </button>
               </div>
             </div>
@@ -409,10 +409,10 @@ const ClubManagementUI = () => {
                 <button
                   type="button"
                   onClick={handleDelete}
-                  disabled={isDeleting}
+                  disabled={isLoading}
                   className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  {isDeleting ? (
+                  {isLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       Deleting...
