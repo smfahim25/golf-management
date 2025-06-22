@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -28,6 +28,8 @@ export default function Calendar({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showClubDropdown, setShowClubDropdown] = useState(false);
   const [bayStartIndex, setBayStartIndex] = useState(0);
+  const [userCache, setUserCache] = useState({});
+  const [loadingUsers, setLoadingUsers] = useState(new Set());
 
   const datePickerRef = useRef(null);
   const dateButtonRef = useRef(null);
@@ -64,8 +66,56 @@ export default function Calendar({
   ];
 
   const clubBays = selectedClub?.bays || [];
-
   const baysPerView = 2;
+
+  const stableGetUserById = useCallback(
+    async (userId) => {
+      try {
+        const userData = await getUserById(userId);
+        setUserCache((prev) => ({
+          ...prev,
+          [userId]: userData,
+        }));
+        return userData;
+      } catch (error) {
+        console.error(`Failed to fetch user ${userId}:`, error);
+        setUserCache((prev) => ({
+          ...prev,
+          [userId]: null,
+        }));
+        throw error;
+      } finally {
+        setLoadingUsers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
+      }
+    },
+    [getUserById]
+  );
+
+  useEffect(() => {
+    if (!availability || !Array.isArray(availability)) return;
+
+    const userIds = [
+      ...new Set(availability.map((booking) => booking.userId).filter(Boolean)),
+    ];
+
+    const fetchUsers = async () => {
+      for (const userId of userIds) {
+        if (userCache[userId] !== undefined || loadingUsers.has(userId)) {
+          continue;
+        }
+
+        setLoadingUsers((prev) => new Set([...prev, userId]));
+
+        await stableGetUserById(userId).catch(() => {});
+      }
+    };
+
+    fetchUsers();
+  }, [availability, userCache, loadingUsers, stableGetUserById]);
 
   const visibleBaysForButtons = clubBays.slice(
     bayStartIndex,
@@ -158,7 +208,6 @@ export default function Calendar({
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      // Check if booking date matches selected date
       const bookingDate = new Date(booking.date);
       if (bookingDate.toDateString() !== selectedDateObj.toDateString())
         return false;
@@ -202,6 +251,70 @@ export default function Calendar({
     }
 
     return end - start;
+  };
+
+  const renderTimeSlot = (time, bay) => {
+    const booking = getBookingForSlot(time, bay);
+    const isSlotBooked = isBookingInSlot(time, bay);
+
+    if (booking) {
+      const span = getBookingSpan(booking);
+      const userId = booking.userId;
+      const user = userCache[userId];
+      const isLoadingUser = loadingUsers.has(userId);
+
+      let displayUserName = "Unknown User";
+      if (isLoadingUser) {
+        displayUserName = "Loading...";
+      } else if (user) {
+        displayUserName = user.name;
+      } else if (userId) {
+        displayUserName = `User ${userId.slice(-8)}`;
+      }
+
+      return (
+        <div className="relative h-16">
+          <div
+            className="absolute inset-0 bg-green-500 rounded-lg text-white font-bold flex flex-col justify-between p-2"
+            style={{ height: `${span * 60}px` }}
+          >
+            <div className="flex-1">
+              <div className="text-xs sm:text-sm font-medium truncate">
+                👤 {displayUserName}
+              </div>
+              <div className="text-xs sm:text-sm opacity-90">
+                {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+              </div>
+            </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onJoinSlotClick(booking);
+              }}
+              className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
+            >
+              <Plus size={12} className="text-gray-700" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (isSlotBooked) {
+      return <div className="h-16 bg-gray-100"></div>;
+    }
+
+    return (
+      <button
+        onClick={() => onSlotClick(time, bay)}
+        className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
+      >
+        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <Plus className="text-white w-3 h-3 sm:w-4 sm:h-4" />
+        </div>
+      </button>
+    );
   };
 
   useEffect(() => {
@@ -252,60 +365,6 @@ export default function Calendar({
     setBayStartIndex(0);
     setSelectedBayView("Both");
   }, [selectedClub]);
-
-  const renderTimeSlot = async (time, bay) => {
-    const booking = getBookingForSlot(time, bay);
-    const isSlotBooked = isBookingInSlot(time, bay);
-
-    if (booking) {
-      const span = getBookingSpan(booking);
-      const displayUserId = booking.userId || "Unknown User";
-      const user = await getUserById(booking.userId);
-      console.log("User data:", user);
-      return (
-        <div className="relative h-16">
-          <div
-            className="absolute inset-0 bg-green-500 rounded-lg text-white font-bold flex flex-col justify-between p-2"
-            style={{ height: `${span * 60}px` }}
-          >
-            <div className="flex-1">
-              <div className="text-xs sm:text-sm font-medium truncate">
-                👤 User: {displayUserId.slice(-8)}
-              </div>
-              <div className="text-xs sm:text-sm opacity-90">
-                {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
-              </div>
-            </div>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onJoinSlotClick(booking);
-              }}
-              className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
-            >
-              <Plus size={12} className="text-gray-700" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (isSlotBooked) {
-      return <div className="h-16 bg-gray-100"></div>;
-    }
-
-    return (
-      <button
-        onClick={() => onSlotClick(time, bay)}
-        className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
-      >
-        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <Plus className="text-white w-3 h-3 sm:w-4 sm:h-4" />
-        </div>
-      </button>
-    );
-  };
 
   return (
     <div className="bg-white">

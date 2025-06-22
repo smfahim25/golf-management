@@ -12,7 +12,6 @@ export default function RegisterForm() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: "",
-    lastName: "",
     email: "",
     password: "",
   });
@@ -25,8 +24,6 @@ export default function RegisterForm() {
     switch (name) {
       case "firstName":
         return value.trim() === "" ? "First Name is required" : "";
-      case "lastName":
-        return value.trim() === "" ? "Last Name is required" : "";
       case "email":
         if (value.trim() === "") return "Email is required";
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,7 +43,6 @@ export default function RegisterForm() {
       [name]: value,
     }));
 
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -81,14 +77,13 @@ export default function RegisterForm() {
     setErrors(newErrors);
     setTouched({
       firstName: true,
-      lastName: true,
       email: true,
       password: true,
     });
 
     if (Object.keys(newErrors).length === 0) {
       const result = await register({
-        name: `${formData.firstName} ${formData.lastName}`,
+        name: `${formData.firstName}`,
         email: formData.email,
         phone: "",
         address: "",
@@ -107,7 +102,6 @@ export default function RegisterForm() {
   const handleCancel = () => {
     setFormData({
       firstName: "",
-      lastName: "",
       email: "",
       password: "",
     });
@@ -133,7 +127,7 @@ export default function RegisterForm() {
                 htmlFor="firstName"
                 className="text-sm font-medium text-gray-700"
               >
-                First Name
+                Full Name
               </Label>
               <div className="relative">
                 <Input
@@ -155,37 +149,6 @@ export default function RegisterForm() {
               </div>
               {errors.firstName && touched.firstName && (
                 <p className="text-sm text-red-600">{errors.firstName}</p>
-              )}
-            </div>
-
-            {/* Last Name */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="lastName"
-                className="text-sm font-medium text-gray-700"
-              >
-                Last Name
-              </Label>
-              <div className="relative">
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
-                  className={`w-full ${
-                    errors.lastName && touched.lastName
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                      : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  }`}
-                />
-                {errors.lastName && touched.lastName && (
-                  <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-red-500" />
-                )}
-              </div>
-              {errors.lastName && touched.lastName && (
-                <p className="text-sm text-red-600">{errors.lastName}</p>
               )}
             </div>
 
