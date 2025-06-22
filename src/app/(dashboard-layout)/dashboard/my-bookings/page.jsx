@@ -1,52 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import SearchBarBooking from "../components/bookings/search-bar";
 import BookingsTable from "../components/bookings/bookings-table";
 import DeleteConfirmModal from "../components/bookings/delete-confirm-modal";
-
-const mockBookings = [
-  {
-    id: 1,
-    date: "08/08/2024",
-    name: "Brian Hirt",
-    bay: 2,
-    hours: 4,
-    startTime: "04:00 AM",
-    endTime: "08:00 AM",
-    players: 2,
-    members: 2,
-    guests: 0,
-  },
-  {
-    id: 2,
-    date: "08/01/2024",
-    name: "Brian Hirt",
-    bay: 2,
-    hours: 4,
-    startTime: "04:00 AM",
-    endTime: "08:00 AM",
-    players: 2,
-    members: 1,
-    guests: 1,
-  },
-];
+import useBookingStore from "@/stores/BookingStore";
 
 export default function Page() {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBooking, setDeleteBooking] = useState(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setBookings(mockBookings);
-      setLoading(false);
-    }, 1500);
+  const {
+    getMyBookings,
+    deleteBooking: deleteBookingAPI,
+    isLoading: loading,
+  } = useBookingStore();
 
-    return () => clearTimeout(timer);
+  const transformBookingData = (apiBookings) => {
+    return apiBookings.map((booking) => ({
+      id: booking._id,
+      date: new Date(booking.date).toLocaleDateString(),
+      name: booking.userId?.name || "Unknown User",
+      bay: booking.bay,
+      hours: booking.playingTime,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      players: booking.numberOfPlayers,
+      members: booking.playerType === "member" ? booking.numberOfPlayers : 0,
+      guests: booking.playerType === "guest" ? booking.numberOfPlayers : 0,
+      originalData: booking,
+    }));
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const response = await getMyBookings();
+      const transformedData = transformBookingData(response);
+      setBookings(transformedData);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, []);
 
   const handleSort = (key) => {
@@ -60,16 +60,24 @@ export default function Page() {
   const filteredAndSortedBookings = () => {
     let filtered = bookings.filter((booking) =>
       Object.values(booking).some((value) =>
-        value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+        value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
 
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+
+        if (typeof aVal === "string") {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+
+        if (aVal < bVal) {
           return sortConfig.direction === "asc" ? -1 : 1;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
+        if (aVal > bVal) {
           return sortConfig.direction === "asc" ? 1 : -1;
         }
         return 0;
@@ -84,10 +92,17 @@ export default function Page() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
-    setBookings(bookings.filter((booking) => booking.id !== deleteBooking.id));
-    setShowDeleteModal(false);
-    setDeleteBooking(null);
+  const confirmDelete = async () => {
+    try {
+      await deleteBookingAPI(deleteBooking.id);
+
+      setBookings(bookings.filter((b) => b.id !== deleteBooking.id));
+
+      setShowDeleteModal(false);
+      setDeleteBooking(null);
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+    }
   };
 
   return (
@@ -97,8 +112,6 @@ export default function Page() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
             My Bookings
           </h1>
-
-          <div className="flex flex-col md:flex-row gap-4 items-start lg:items-center justify-between"></div>
 
           {/* Search */}
           <div className="mt-4">
@@ -114,6 +127,7 @@ export default function Page() {
           onSort={handleSort}
           onDelete={handleDelete}
         />
+
         {showDeleteModal && deleteBooking && (
           <DeleteConfirmModal
             booking={deleteBooking}

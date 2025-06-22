@@ -9,6 +9,23 @@ export default function BookingsTable({
   onSort,
   onDelete,
 }) {
+  const formatTime = (timeString) => {
+    if (!timeString) return timeString;
+
+    const [hours, minutes] = timeString.split(":");
+    const hour24 = parseInt(hours, 10);
+
+    if (hour24 === 0) {
+      return `12:${minutes} AM`;
+    } else if (hour24 < 12) {
+      return `${hour24}:${minutes} AM`;
+    } else if (hour24 === 12) {
+      return `12:${minutes} PM`;
+    } else {
+      return `${hour24 - 12}:${minutes} PM`;
+    }
+  };
+
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
       return <ChevronUp className="w-4 h-4 text-gray-400" />;
@@ -25,8 +42,8 @@ export default function BookingsTable({
     { key: "name", label: "Name", width: "w-36" },
     { key: "bay", label: "Bay", width: "w-20" },
     { key: "hours", label: "# of Hours", width: "w-24" },
-    { key: "startTime", label: "Start Time", width: "w-28" },
-    { key: "endTime", label: "End Time", width: "w-28" },
+    { key: "startTime", label: "Start Time", width: "w-32" },
+    { key: "endTime", label: "End Time", width: "w-32" },
     { key: "players", label: "Player(s)", width: "w-24" },
     { key: "members", label: "Member(s)", width: "w-28" },
     { key: "guests", label: "Guest(s)", width: "w-24" },
@@ -103,13 +120,19 @@ export default function BookingsTable({
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-900">
-                      <div className="w-28 truncate" title={booking.startTime}>
-                        {booking.startTime}
+                      <div
+                        className="w-32 truncate"
+                        title={formatTime(booking.startTime)}
+                      >
+                        {formatTime(booking.startTime)}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-900">
-                      <div className="w-28 truncate" title={booking.endTime}>
-                        {booking.endTime}
+                      <div
+                        className="w-32 truncate"
+                        title={formatTime(booking.endTime)}
+                      >
+                        {formatTime(booking.endTime)}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-900">

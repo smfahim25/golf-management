@@ -137,6 +137,32 @@ const useBookingStore = create((set) => ({
       return [];
     }
   },
+  getMyBookings: async ({ date, club, bay } = {}) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = Cookies.get("token");
+      const params = new URLSearchParams();
+      if (date) params.append("date", date);
+      if (club) params.append("club", club);
+      if (bay) params.append("bay", bay);
+
+      const res = await fetch(`${API_BASE}/bookings/me?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.message || "Failed to fetch your bookings");
+
+      set({ bookings: data, isLoading: false });
+      return data;
+    } catch (err) {
+      set({ error: err.message, isLoading: false });
+      return [];
+    }
+  },
 }));
 
 export default useBookingStore;
