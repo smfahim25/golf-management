@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
           </div>
         </div>
       </TooltipProvider>
-      <Toaster />
+      <Toaster position="top-right" />
       {/* </SettingsProvider> */}
       {/* </ThemeProvider> */}
     </>

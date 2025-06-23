@@ -29,8 +29,10 @@ export default function Page() {
       startTime: booking.startTime,
       endTime: booking.endTime,
       players: booking.numberOfPlayers,
-      members: booking.playerType === "member" ? booking.numberOfPlayers : 0,
-      guests: booking.playerType === "guest" ? booking.numberOfPlayers : 0,
+      members: booking?.numberOfGuests
+        ? booking.numberOfPlayers - booking?.numberOfGuests
+        : 0,
+      guests: booking?.numberOfGuests || 0,
       originalData: booking,
     }));
   };

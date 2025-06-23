@@ -20,7 +20,12 @@ export default function BookingModal({
   const [bookingType, setBookingType] = useState("yourself");
   const [memberName, setMemberName] = useState("");
   const [playingTime, setPlayingTime] = useState(1);
-  const [numberOfPlayers, setNumberOfPlayers] = useState("single");
+  const [playerOption, setPlayerOption] = useState({
+    type: "single",
+    label: "Single Member",
+    guests: 0,
+    price: 0,
+  });
   const [selectedBay, setSelectedBay] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -32,6 +37,7 @@ export default function BookingModal({
   const [showClubDropdown, setShowClubDropdown] = useState(false);
   const [modalAvailability, setModalAvailability] = useState([]);
   const [showBayDropdown, setShowBayDropdown] = useState(false);
+  const [playerOptions, setPlayerOptions] = useState([]);
 
   const datePickerRef = useRef(null);
   const dateButtonRef = useRef(null);
@@ -74,8 +80,49 @@ export default function BookingModal({
     "23:00",
   ];
 
+  useEffect(() => {
+    const options = [
+      { type: "single", label: "Single Member", guests: 0, price: 0 },
+    ];
+
+    if (playingTime === 1) {
+      options.push({
+        type: "guest1",
+        label: "Member with 1 Guest",
+        guests: 1,
+        price: 10,
+      });
+    } else if (playingTime === 2) {
+      options.push(
+        { type: "guest1", label: "Member with 1 Guest", guests: 1, price: 20 },
+        { type: "guest2", label: "Member with 2 Guests", guests: 2, price: 35 },
+        { type: "guest3", label: "Member with 3 Guests", guests: 3, price: 45 }
+      );
+    } else if (playingTime === 4) {
+      options.push(
+        { type: "guest1", label: "Member with 1 Guest", guests: 1, price: 40 },
+        {
+          type: "guest2",
+          label: "Member with 2 Guests",
+          guests: 2,
+          price: 70,
+        },
+        { type: "guest3", label: "Member with 3 Guests", guests: 3, price: 90 }
+      );
+    }
+
+    setPlayerOptions(options);
+
+    if (
+      (playingTime === 1 && playerOption.guests > 1) ||
+      (playingTime !== 1 && playerOption.type === "single")
+    ) {
+      setPlayerOption(options[0]);
+    }
+  }, [playingTime]);
+
   const formatTime = (time) => {
-    const hour = Number.parseInt(time.split(":")[0]);
+    const hour = parseInt(time.split(":")[0]);
     if (hour === 0) return "12:00 AM";
     if (hour < 12) return `${hour}:00 AM`;
     if (hour === 12) return "12:00 PM";
@@ -94,7 +141,7 @@ export default function BookingModal({
 
   const calculateEndTime = (start, duration) => {
     if (!start) return "";
-    const startHour = Number.parseInt(start.split(":")[0]);
+    const startHour = parseInt(start.split(":")[0]);
     const endHour = (startHour + duration) % 24;
     return `${endHour.toString().padStart(2, "0")}:00`;
   };
@@ -105,15 +152,15 @@ export default function BookingModal({
       return false;
     }
 
-    const newStart = Number.parseInt(startTime.split(":")[0]);
-    const newEnd = Number.parseInt(endTime.split(":")[0]);
+    const newStart = parseInt(startTime.split(":")[0]);
+    const newEnd = parseInt(endTime.split(":")[0]);
 
     const conflict = existingBookings.find((booking) => {
       if (booking.date !== selectedDate) return false;
       if (booking.bay !== selectedBay) return false;
 
-      const existingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const existingEnd = Number.parseInt(booking.endTime.split(":")[0]);
+      const existingStart = parseInt(booking.startTime.split(":")[0]);
+      const existingEnd = parseInt(booking.endTime.split(":")[0]);
 
       if (existingEnd > existingStart && newEnd > newStart) {
         return (
@@ -164,14 +211,8 @@ export default function BookingModal({
         setShowDatePicker(false);
       }
     }
-
-    if (showDatePicker) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showDatePicker]);
 
   useEffect(() => {
@@ -302,7 +343,6 @@ export default function BookingModal({
     }
   }, [selectedModalClub, selectedDate, checkAvailability]);
 
-  // Reset bay selection when club changes
   useEffect(() => {
     if (selectedModalClub) {
       const clubBays = selectedModalClub.bays || [];
@@ -344,11 +384,13 @@ export default function BookingModal({
       bookingType,
       memberName: bookingType === "member" ? memberName : "",
       playingTime,
-      numberOfPlayers,
+      numberOfPlayers: playerOption.guests + 1,
+      numberOfGuests: playerOption.guests,
       bay: selectedBay,
       startTime,
       endTime,
       clubId: selectedModalClub._id,
+      price: playerOption.price,
     };
 
     onConfirm(bookingData);
@@ -357,18 +399,16 @@ export default function BookingModal({
   const isTimeSlotAvailable = (time) => {
     if (!selectedModalClub || !selectedBay) return false;
 
-    const hour = Number.parseInt(time.split(":")[0]);
+    const hour = parseInt(time.split(":")[0]);
+    const potentialEnd = (hour + playingTime) % 24;
 
-    // Check against API availability data
     const isSlotBooked = modalAvailability.some((booking) => {
       if (booking.bay !== selectedBay) return false;
       if (booking.club !== selectedModalClub._id) return false;
 
-      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-      const potentialEnd = (hour + playingTime) % 24;
+      const bookingStart = parseInt(booking.startTime.split(":")[0]);
+      const bookingEnd = parseInt(booking.endTime.split(":")[0]);
 
-      // Check if the potential booking would conflict
       if (bookingEnd > bookingStart) {
         return (
           (hour >= bookingStart && hour < bookingEnd) ||
@@ -452,13 +492,6 @@ export default function BookingModal({
                 </div>
               )}
             </div>
-
-            {availabilityLoading && (
-              <div className="mt-2 flex items-center text-sm text-blue-600">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                Checking availability...
-              </div>
-            )}
           </div>
 
           {/* Date Picker */}
@@ -491,7 +524,6 @@ export default function BookingModal({
                     onDateSelect={(date) => {
                       onDateChange(date);
                       setShowDatePicker(false);
-                      setTimeout(checkForConflicts, 0);
                     }}
                     onClose={() => setShowDatePicker(false)}
                   />
@@ -508,7 +540,7 @@ export default function BookingModal({
             <div className="flex space-x-3">
               <button
                 onClick={() => setBookingType("yourself")}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   bookingType === "yourself"
                     ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -518,7 +550,7 @@ export default function BookingModal({
               </button>
               <button
                 onClick={() => setBookingType("member")}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   bookingType === "member"
                     ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -555,7 +587,7 @@ export default function BookingModal({
                 <button
                   key={hours}
                   onClick={() => setPlayingTime(hours)}
-                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
                     playingTime === hours
                       ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -579,9 +611,8 @@ export default function BookingModal({
                 className="w-full p-4 border border-gray-300 rounded-xl text-left flex items-center justify-between hover:border-blue-400 hover:shadow-md transition-all duration-200 bg-gray-50 cursor-pointer"
               >
                 <span className="font-medium">
-                  {numberOfPlayers === "single"
-                    ? "Single Member"
-                    : "Member with 1 Guest - $10"}
+                  {playerOption.label}
+                  {playerOption.price > 0 ? ` - $${playerOption.price}` : ""}
                 </span>
                 <ChevronDown className="w-5 h-5 text-gray-400" />
               </button>
@@ -591,32 +622,26 @@ export default function BookingModal({
                   ref={playersDropdownRef}
                   className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-xl shadow-lg z-10 overflow-hidden"
                 >
-                  <button
-                    onClick={() => {
-                      setNumberOfPlayers("single");
-                      setShowPlayersDropdown(false);
-                    }}
-                    className="w-full p-4 text-left hover:bg-blue-50 transition-colors duration-200 font-medium cursor-pointer"
-                  >
-                    Single Member
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNumberOfPlayers("guest");
-                      setShowPlayersDropdown(false);
-                    }}
-                    className="w-full p-4 text-left hover:bg-blue-50 transition-colors duration-200 border-t border-gray-200 font-medium"
-                  >
-                    Member with 1 Guest - $10
-                  </button>
+                  {playerOptions.map((option) => (
+                    <button
+                      key={option.type}
+                      onClick={() => {
+                        setPlayerOption(option);
+                        setShowPlayersDropdown(false);
+                      }}
+                      className={`w-full p-4 text-left hover:bg-blue-50 transition-colors duration-200 font-medium ${
+                        playerOption.type === option.type
+                          ? "bg-blue-50 text-blue-900"
+                          : ""
+                      } ${option.guests > 0 ? "border-t border-gray-200" : ""}`}
+                    >
+                      {option.label}
+                      {option.price > 0 ? ` - $${option.price}` : ""}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-
-            <p className="text-xs text-gray-500 mt-2 bg-blue-50 p-3 rounded-lg">
-              💡 Please note that additional fees for guests will apply,
-              determined by the chosen session duration.
-            </p>
           </div>
 
           {/* Bay Selection */}
@@ -625,7 +650,6 @@ export default function BookingModal({
               Choose Bay
             </label>
             {selectedModalClub && selectedModalClub.bays.length > 2 ? (
-              // Dropdown for more than 2 bays
               <div className="relative">
                 <button
                   ref={bayButtonRef}
@@ -661,13 +685,12 @@ export default function BookingModal({
                 )}
               </div>
             ) : (
-              // Buttons for 2 or fewer bays
               <div className="grid grid-cols-2 gap-3">
                 {selectedModalClub?.bays.map((bay) => (
                   <button
                     key={bay}
                     onClick={() => setSelectedBay(bay)}
-                    className={`py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                    className={`py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
                       selectedBay === bay
                         ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -675,7 +698,7 @@ export default function BookingModal({
                   >
                     {bay}
                   </button>
-                )) || []}
+                ))}
               </div>
             )}
           </div>
@@ -750,28 +773,17 @@ export default function BookingModal({
                 </div>
               )}
 
-              {/* End Time - Disabled */}
-              {availabilityLoading ? (
-                <div className="w-full p-4 border border-gray-300 rounded-xl flex items-center justify-center bg-gray-50">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
-                  <span className="text-gray-600">Calculating end time...</span>
+              {/* End Time */}
+              <div className="relative">
+                <div className="w-full p-4 border border-gray-200 rounded-xl text-left flex items-center justify-between bg-gray-100 cursor-not-allowed">
+                  <span className="text-gray-500 font-medium">
+                    {endTime
+                      ? formatTime(endTime)
+                      : "End Time (Auto-calculated)"}
+                  </span>
+                  <div className="text-gray-400 text-sm">🔒</div>
                 </div>
-              ) : (
-                <div className="relative">
-                  <div className="w-full p-4 border border-gray-200 rounded-xl text-left flex items-center justify-between bg-gray-100 cursor-not-allowed">
-                    <span className="text-gray-500 font-medium">
-                      {endTime
-                        ? formatTime(endTime)
-                        : "End Time (Auto-calculated)"}
-                    </span>
-                    <div className="text-gray-400 text-sm">🔒</div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    End time is automatically calculated based on playing
-                    duration
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -787,20 +799,20 @@ export default function BookingModal({
           <div className="flex space-x-4 pt-4">
             <button
               onClick={onClose}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl cursor-pointer"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
               disabled={!!conflictWarning || availabilityLoading}
-              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl cursor-pointer ${
+              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
                 conflictWarning || availabilityLoading
                   ? "bg-gray-400 text-white cursor-not-allowed"
                   : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
               }`}
             >
-              Confirm
+              Confirm Booking
             </button>
           </div>
         </div>

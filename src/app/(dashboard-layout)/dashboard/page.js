@@ -25,6 +25,7 @@ export default function Page() {
     availability,
     checkAvailability,
     createBooking,
+    updateBooking,
     isLoading: availabilityLoading,
   } = useBookingStore();
 
@@ -159,9 +160,8 @@ export default function Page() {
         bookedFor: bookingData.bookingType === "yourself" ? "self" : "member",
         memberName: bookingData.memberName || undefined,
         playingTime: bookingData.playingTime,
-        numberOfPlayers: bookingData.numberOfPlayers === "single" ? 1 : 2,
-        playerType:
-          bookingData.numberOfPlayers === "single" ? "single" : "guest",
+        numberOfPlayers: bookingData.numberOfPlayers,
+        numberOfGuest: bookingData.numberOfGuests,
         bay: bookingData.bay,
         club: bookingData.clubId,
         startTime: bookingData.startTime,
@@ -186,16 +186,16 @@ export default function Page() {
     }
   };
 
-  const handleJoinSlotConfirm = (joinData) => {
-    toast.success(
-      `Successfully joined the slot! ${joinData.playerOption.label}${
-        joinData.playerOption.price > 0
-          ? ` - Additional fee: $${joinData.playerOption.price}`
-          : ""
-      }`
-    );
+  const handleJoinSlotConfirm = async (joinData) => {
+    await updateBooking(joinData.bookingId, {
+      numberOfPlayers: joinData?.numberOfPlayers,
+      numberOfGuest: joinData?.playerOption?.guests,
+    });
     setIsJoinModalOpen(false);
     setSelectedBooking(null);
+    if (selectedClub && selectedDate) {
+      await checkAvailability(selectedDate, selectedClub._id);
+    }
   };
 
   const handleDateChange = (newDate) => {
@@ -206,7 +206,6 @@ export default function Page() {
     setSelectedClub(club);
   };
 
-  // Show loading state while clubs are being fetched
   if (clubsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -250,7 +249,7 @@ export default function Page() {
           onSlotClick={handleSlotClick}
           onBookSlotClick={handleBookSlotClick}
           onJoinSlotClick={handleJoinSlotClick}
-          bookings={availability} // Pass availability data as bookings
+          bookings={availability}
           selectedDate={selectedDate}
           onDateChange={handleDateChange}
           selectedClub={selectedClub}
@@ -268,7 +267,7 @@ export default function Page() {
             onConfirm={handleBookingConfirm}
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
-            existingBookings={availability} // Pass availability data as existing bookings
+            existingBookings={availability}
             selectedClub={selectedClub}
             clubs={clubs}
             isBookingLoading={isBookingLoading}

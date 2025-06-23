@@ -5,15 +5,70 @@ import { X, ChevronDown } from "lucide-react";
 
 export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
   const [numberOfPlayers, setNumberOfPlayers] = useState("single");
+  const [playerOptions, setPlayerOptions] = useState([]);
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false);
   const playersDropdownRef = useRef(null);
   const playersButtonRef = useRef(null);
 
-  const playerOptions = [
-    { value: "single", label: "Single Member", price: 0 },
-    { value: "guest1", label: "Member with 1 Guest", price: 20 },
-    { value: "guest2", label: "Member with 2 Guests", price: 35 },
-  ];
+  useEffect(() => {
+    if (!booking?.playingTime) return;
+
+    const playingTime = booking.playingTime;
+    const options = [
+      { value: "single", label: "Single Member", guests: 0, price: 0 },
+    ];
+
+    if (playingTime === 1) {
+      options.push({
+        value: "guest1",
+        label: "Member with 1 Guest",
+        guests: 1,
+        price: 10,
+      });
+    } else if (playingTime === 2) {
+      options.push(
+        { value: "guest1", label: "Member with 1 Guest", guests: 1, price: 20 },
+        {
+          value: "guest2",
+          label: "Member with 2 Guests",
+          guests: 2,
+          price: 35,
+        },
+        { value: "guest3", label: "Member with 3 Guests", guests: 3, price: 45 }
+      );
+    } else if (playingTime === 4) {
+      options.push(
+        { value: "guest1", label: "Member with 1 Guest", guests: 1, price: 40 },
+        {
+          value: "guest2",
+          label: "Member with 2 Guests",
+          guests: 2,
+          price: 70,
+        },
+        { value: "guest3", label: "Member with 3 Guests", guests: 3, price: 90 }
+      );
+    }
+
+    setPlayerOptions(options);
+
+    if (booking?.numberOfGuest !== undefined) {
+      const matchingOption = options.find(
+        (opt) => opt.guests === booking.numberOfGuest
+      );
+      if (matchingOption) {
+        setNumberOfPlayers(matchingOption.value);
+      } else {
+        setNumberOfPlayers("single");
+      }
+    } else {
+      const currentOption = options.find(
+        (opt) => opt.value === numberOfPlayers
+      );
+      if (!currentOption) {
+        setNumberOfPlayers("single");
+      }
+    }
+  }, [booking?.playingTime, booking?.numberOfGuest]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -51,9 +106,10 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
 
   const handleConfirm = () => {
     const selectedOption = getSelectedOption();
+    const totalPlayers = 1 + selectedOption.guests;
     onConfirm({
-      bookingId: booking.id,
-      numberOfPlayers,
+      bookingId: booking._id,
+      numberOfPlayers: totalPlayers,
       playerOption: selectedOption,
     });
   };
@@ -87,6 +143,10 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
               </p>
               <p>
                 <span className="font-medium">Bay:</span> {booking.bay}
+              </p>
+              <p>
+                <span className="font-medium">Playing Time:</span>{" "}
+                {booking.playingTime} hour{booking.playingTime !== 1 ? "s" : ""}
               </p>
               <p>
                 <span className="font-medium">Host:</span>{" "}
@@ -139,9 +199,6 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
                         <span className="text-green-600 font-semibold">
                           ${option.price}
                         </span>
-                      )}
-                      {numberOfPlayers === option.value && (
-                        <span className="text-blue-600">✓</span>
                       )}
                     </button>
                   ))}

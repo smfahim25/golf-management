@@ -257,6 +257,14 @@ export default function Calendar({
     const booking = getBookingForSlot(time, bay);
     const isSlotBooked = isBookingInSlot(time, bay);
 
+    const currentDate = new Date();
+
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const [hour, minute] = time.split(":").map(Number);
+    const slotDateTime = new Date(year, month - 1, day, hour, minute);
+
+    const isPast = slotDateTime.getTime() <= currentDate.getTime();
+
     if (booking) {
       const span = getBookingSpan(booking);
       const userId = booking.userId;
@@ -275,27 +283,37 @@ export default function Calendar({
       return (
         <div className="relative h-16">
           <div
-            className="absolute inset-0 bg-green-500 rounded-lg text-white font-bold flex flex-col justify-between p-2"
+            className={`absolute inset-0 ${
+              (booking.playingTime > 1 && booking.numberOfPlayers === 4) ||
+              (booking.playingTime === 1 && booking.numberOfPlayers === 2) ||
+              isPast
+                ? "bg-red-500"
+                : "bg-[#6fbf49]"
+            }  rounded-lg text-black font-bold flex flex-col justify-between p-4`}
             style={{ height: `${span * 60}px` }}
           >
             <div className="flex-1">
-              <div className="text-xs sm:text-sm font-medium truncate">
-                👤 {displayUserName}
+              <div className="text-xs sm:text-sm font-bold truncate">
+                👤 {displayUserName} - {booking.numberOfPlayers}
               </div>
               <div className="text-xs sm:text-sm opacity-90">
                 {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
               </div>
             </div>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onJoinSlotClick(booking);
-              }}
-              className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
-            >
-              <Plus size={12} className="text-gray-700" />
-            </button>
+            {(booking.playingTime !== 1 || booking.numberOfPlayers !== 2) &&
+              (booking.playingTime <= 1 || booking.numberOfPlayers !== 4) &&
+              !isPast && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onJoinSlotClick(booking);
+                  }}
+                  className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
+                >
+                  <Plus size={12} className="text-gray-700" />
+                </button>
+              )}
           </div>
         </div>
       );
@@ -308,7 +326,7 @@ export default function Calendar({
     return (
       <button
         onClick={() => onSlotClick(time, bay)}
-        className="w-full h-16 hover:bg-blue-50 transition-colors duration-200 group flex items-center justify-center"
+        className="w-full h-16 transition-colors duration-200 group flex items-center justify-center hover:bg-blue-50"
       >
         <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <Plus className="text-white w-3 h-3 sm:w-4 sm:h-4" />
@@ -367,18 +385,28 @@ export default function Calendar({
   }, [selectedClub]);
 
   return (
-    <div className="bg-white">
+    <div className="bg-white relative">
       {/* Header Controls */}
+      {isLoadingAvailability && (
+        <div className="fixed inset-0 bg-white/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 flex items-center border border-gray-200">
+            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-xs sm:text-sm text-gray-900 font-medium">
+              Checking availability...
+            </span>
+          </div>
+        </div>
+      )}
       <div className="bg-gray-50 p-4 sm:p-4 lg:p-6 border-b border-gray-200">
         <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 lg:gap-4">
           <button
             onClick={onBookSlotClick}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
+            className="bg-primary hover:bg-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
           >
             Book a Slot
           </button>
 
-          <div className="flex flex-col space-y-3 sm:space-y-4 lg:flex-row lg:items-center lg:space-y-0 lg:gap-4">
+          <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:space-y-0 lg:gap-4">
             {/* Date Navigation */}
             <div className="flex items-center justify-between sm:justify-start sm:space-x-3">
               <button
@@ -545,16 +573,6 @@ export default function Calendar({
             </div>
           </div>
         </div>
-
-        {/* Loading indicator */}
-        {isLoadingAvailability && (
-          <div className="mt-4 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-blue-500"></div>
-            <span className="ml-2 text-xs sm:text-sm text-gray-600">
-              Checking availability...
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Calendar Grid - Responsive Design */}

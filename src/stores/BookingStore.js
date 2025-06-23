@@ -60,7 +60,7 @@ const useBookingStore = create((set) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create booking");
       set({ isLoading: false });
-      toast.success("Booking created successfully!");
+      toast.success("Slot booked successfully!");
       return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
@@ -83,10 +83,37 @@ const useBookingStore = create((set) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to update booking");
       set({ isLoading: false });
+      toast.success("Booked slot updated successfully");
       return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       return null;
+    }
+  },
+  getMyBookings: async ({ date, club, bay } = {}) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = Cookies.get("token");
+      const params = new URLSearchParams();
+      if (date) params.append("date", date);
+      if (club) params.append("club", club);
+      if (bay) params.append("bay", bay);
+
+      const res = await fetch(`${API_BASE}/bookings/me?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.message || "Failed to fetch your bookings");
+
+      set({ bookings: data, isLoading: false });
+      return data;
+    } catch (err) {
+      set({ error: err.message, isLoading: false });
+      return [];
     }
   },
 
@@ -103,6 +130,8 @@ const useBookingStore = create((set) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to delete booking");
       set({ isLoading: false });
+      toast.success("Booked slot delete successfully");
+      await getMyBookings.get();
       return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
@@ -132,32 +161,6 @@ const useBookingStore = create((set) => ({
 
       set({ availability: data, isLoading: false });
       return data.data || data;
-    } catch (err) {
-      set({ error: err.message, isLoading: false });
-      return [];
-    }
-  },
-  getMyBookings: async ({ date, club, bay } = {}) => {
-    set({ isLoading: true, error: null });
-    try {
-      const token = Cookies.get("token");
-      const params = new URLSearchParams();
-      if (date) params.append("date", date);
-      if (club) params.append("club", club);
-      if (bay) params.append("bay", bay);
-
-      const res = await fetch(`${API_BASE}/bookings/me?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.message || "Failed to fetch your bookings");
-
-      set({ bookings: data, isLoading: false });
-      return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       return [];
