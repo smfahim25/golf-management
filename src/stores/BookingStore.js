@@ -22,7 +22,8 @@ const useBookingStore = create((set) => ({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch bookings");
-      set({ bookings: data.data, isLoading: false });
+      set({ bookings: data, isLoading: false });
+      return data;
     } catch (err) {
       set({ error: err.message, isLoading: false });
     }

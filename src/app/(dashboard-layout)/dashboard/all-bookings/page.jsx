@@ -9,85 +9,10 @@ import RestrictBaysModal from "../components/bookings/restrict-bays-modal";
 import EditSettingsModal from "../components/bookings/edit-settings-modal";
 import BookingsTable from "../components/bookings/bookings-table";
 import SearchBarBooking from "../components/bookings/search-bar";
-
-const mockBookings = [
-  {
-    id: 1,
-    date: "08/08/2024",
-    name: "Brian Hirt",
-    bay: 2,
-    hours: 4,
-    startTime: "04:00 AM",
-    endTime: "08:00 AM",
-    players: 2,
-    members: 2,
-    guests: 0,
-  },
-  {
-    id: 2,
-    date: "08/01/2024",
-    name: "Brian Hirt",
-    bay: 2,
-    hours: 4,
-    startTime: "04:00 AM",
-    endTime: "08:00 AM",
-    players: 2,
-    members: 1,
-    guests: 1,
-  },
-  {
-    id: 3,
-    date: "08/01/2024",
-    name: "Tom Cavanaugh",
-    bay: 1,
-    hours: 2,
-    startTime: "02:00 AM",
-    endTime: "04:00 AM",
-    players: 1,
-    members: 1,
-    guests: 0,
-  },
-  {
-    id: 4,
-    date: "08/01/2024",
-    name: "Jason Rice",
-    bay: 2,
-    hours: 2,
-    startTime: "10:00 PM",
-    endTime: "12:00 AM",
-    players: 1,
-    members: 1,
-    guests: 0,
-  },
-  {
-    id: 5,
-    date: "08/02/2024",
-    name: "Tina Wolverton",
-    bay: 1,
-    hours: 1,
-    startTime: "06:00 AM",
-    endTime: "07:00 AM",
-    players: 1,
-    members: 1,
-    guests: 0,
-  },
-  {
-    id: 6,
-    date: "08/04/2024",
-    name: "Josh Covault",
-    bay: 2,
-    hours: 4,
-    startTime: "11:00 PM",
-    endTime: "03:00 AM",
-    players: 1,
-    members: 1,
-    guests: 0,
-  },
-];
+import useBookingStore from "@/stores/BookingStore";
 
 export default function Page() {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [showEditModal, setShowEditModal] = useState(false);
@@ -97,15 +22,43 @@ export default function Page() {
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [isExporting, setIsExporting] = useState(false);
 
+  const {
+    getAllBookings,
+    deleteBooking: deleteBookingAPI,
+    isLoading: loading,
+  } = useBookingStore();
+
+  const transformBookingData = (apiBookings) => {
+    return apiBookings.map((booking) => ({
+      id: booking._id,
+      date: new Date(booking.date).toLocaleDateString(),
+      name: booking.userId?.name || "Unknown User",
+      bay: booking.bay,
+      hours: booking.playingTime,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      players: booking.numberOfPlayers,
+      members: booking?.numberOfGuests
+        ? booking.numberOfPlayers - booking?.numberOfGuests
+        : 0,
+      guests: booking?.numberOfGuests || 0,
+      originalData: booking,
+    }));
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const response = await getAllBookings();
+      const transformedData = transformBookingData(response);
+      setBookings(transformedData);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBookings(mockBookings);
-      setLoading(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    fetchBookings();
   }, []);
-
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -151,10 +104,17 @@ export default function Page() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
-    setBookings(bookings.filter((booking) => booking.id !== deleteBooking.id));
-    setShowDeleteModal(false);
-    setDeleteBooking(null);
+  const confirmDelete = async () => {
+    try {
+      await deleteBookingAPI(deleteBooking.id);
+
+      setBookings(bookings.filter((b) => b.id !== deleteBooking.id));
+
+      setShowDeleteModal(false);
+      setDeleteBooking(null);
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+    }
   };
 
   const handleExport = async () => {
