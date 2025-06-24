@@ -52,6 +52,39 @@ export default function Page() {
     }
   }, [selectedClub, selectedDate, checkAvailability]);
 
+  const timeToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    return hours * 60 + (minutes || 0);
+  };
+
+  const hasTimeConflict = (existingBooking, newBooking) => {
+    if (existingBooking.bay !== newBooking.bay) return false;
+    if (existingBooking.club !== selectedClub?._id) return false;
+
+    const existingStart = timeToMinutes(existingBooking.startTime);
+    const existingEnd = timeToMinutes(existingBooking.endTime);
+    const newStart = timeToMinutes(newBooking.startTime);
+    const newEnd = timeToMinutes(newBooking.endTime);
+
+    if (existingEnd > existingStart && newEnd > newStart) {
+      return !(newEnd <= existingStart || newStart >= existingEnd);
+    }
+
+    if (existingEnd <= existingStart) {
+      if (newEnd > newStart) {
+        return !(newEnd <= existingStart && newStart >= existingEnd);
+      } else {
+        return true;
+      }
+    }
+
+    if (newEnd <= newStart) {
+      return !(existingEnd <= newStart && existingStart >= newEnd);
+    }
+
+    return false;
+  };
+
   const handleSlotClick = (time, bay) => {
     const isSlotBooked = availability.some((booking) => {
       if (booking.bay !== bay) return false;
@@ -111,44 +144,27 @@ export default function Page() {
     setSelectedBooking(null);
   };
 
-  const handleBookingConfirm = async (bookingData) => {
-    const hasConflict = availability.some((booking) => {
-      if (booking.bay !== bookingData.bay) return false;
-      if (booking.club !== selectedClub?._id) return false;
-
-      const existingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const existingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-      const newStart = Number.parseInt(bookingData.startTime.split(":")[0]);
-      const newEnd = Number.parseInt(bookingData.endTime.split(":")[0]);
-
-      if (existingEnd > existingStart && newEnd > newStart) {
-        return (
-          (newStart >= existingStart && newStart < existingEnd) ||
-          (newEnd > existingStart && newEnd <= existingEnd) ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        );
-      } else if (existingEnd <= existingStart && newEnd <= newStart) {
-        return (
-          newStart >= existingStart ||
-          newStart < existingEnd ||
-          newEnd > existingStart ||
-          newEnd <= existingEnd ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        );
-      } else {
-        return (
-          (newStart >= existingStart && newStart < 24) ||
-          (newEnd > 0 && newEnd <= existingEnd) ||
-          (existingStart >= newStart && existingStart < 24) ||
-          (existingEnd > 0 && existingEnd <= newEnd)
-        );
+  const refreshAvailability = async () => {
+    if (selectedClub && selectedDate) {
+      try {
+        await checkAvailability(selectedDate, selectedClub._id);
+      } catch (error) {
+        console.error("Failed to refresh availability:", error);
       }
-    });
+    }
+  };
+
+  const handleBookingConfirm = async (bookingData) => {
+    const hasConflict = availability.some((booking) =>
+      hasTimeConflict(booking, bookingData)
+    );
 
     if (hasConflict) {
       toast.error(
         "This booking conflicts with an existing booking. Please select a different time or bay."
       );
+
+      await refreshAvailability();
       return;
     }
 
@@ -170,31 +186,42 @@ export default function Page() {
 
       await createBooking(apiBookingData);
 
+      toast.success("Booking created successfully!");
+
       setIsModalOpen(false);
       setSelectedSlot(null);
 
-      if (selectedClub && selectedDate) {
-        await checkAvailability(selectedDate, selectedClub._id);
-      }
+      await refreshAvailability();
     } catch (error) {
       console.error("Failed to create booking:", error);
       toast.error(
         error.message || "Failed to create booking. Please try again."
       );
+
+      await refreshAvailability();
     } finally {
       setIsBookingLoading(false);
     }
   };
 
   const handleJoinSlotConfirm = async (joinData) => {
-    await updateBooking(joinData.bookingId, {
-      numberOfPlayers: joinData?.numberOfPlayers,
-      numberOfGuest: joinData?.playerOption?.guests,
-    });
-    setIsJoinModalOpen(false);
-    setSelectedBooking(null);
-    if (selectedClub && selectedDate) {
-      await checkAvailability(selectedDate, selectedClub._id);
+    try {
+      await updateBooking(joinData.bookingId, {
+        numberOfPlayers: joinData?.numberOfPlayers,
+        numberOfGuest: joinData?.playerOption?.guests,
+      });
+
+      toast.success("Successfully joined the slot!");
+
+      setIsJoinModalOpen(false);
+      setSelectedBooking(null);
+
+      await refreshAvailability();
+    } catch (error) {
+      console.error("Failed to join slot:", error);
+      toast.error("Failed to join slot. Please try again.");
+
+      await refreshAvailability();
     }
   };
 
@@ -217,7 +244,6 @@ export default function Page() {
     );
   }
 
-  // Show message if no clubs available
   if (!clubsLoading && clubs.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -231,7 +257,6 @@ export default function Page() {
     );
   }
 
-  // Show message if no club is selected
   if (!selectedClub) {
     return (
       <div className="min-h-screen flex items-center justify-center">
