@@ -96,11 +96,10 @@ export default function Page() {
 
   const confirmDelete = async () => {
     try {
+      setShowDeleteModal(false);
       await deleteBookingAPI(deleteBooking.id);
 
       setBookings(bookings.filter((b) => b.id !== deleteBooking.id));
-
-      setShowDeleteModal(false);
       setDeleteBooking(null);
     } catch (error) {
       console.error("Error deleting booking:", error);

@@ -68,6 +68,25 @@ export default function Calendar({
   const clubBays = selectedClub?.bays || [];
   const baysPerView = 2;
 
+  const convertISOToTimeFormat = (isoString) => {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
+  const transformedAvailability = useCallback(() => {
+    if (!availability || !Array.isArray(availability)) return [];
+
+    return availability.map((booking) => ({
+      ...booking,
+      startTime: convertISOToTimeFormat(booking.startTime),
+      endTime: convertISOToTimeFormat(booking.endTime),
+      date: booking.date || booking.startDateTime?.split("T")[0],
+    }));
+  }, [availability]);
+
   const stableGetUserById = useCallback(
     async (userId) => {
       try {
@@ -96,10 +115,13 @@ export default function Calendar({
   );
 
   useEffect(() => {
-    if (!availability || !Array.isArray(availability)) return;
+    const transformedData = transformedAvailability();
+    if (!transformedData || !Array.isArray(transformedData)) return;
 
     const userIds = [
-      ...new Set(availability.map((booking) => booking.userId).filter(Boolean)),
+      ...new Set(
+        transformedData.map((booking) => booking.userId).filter(Boolean)
+      ),
     ];
 
     const fetchUsers = async () => {
@@ -115,7 +137,13 @@ export default function Calendar({
     };
 
     fetchUsers();
-  }, [availability, userCache, loadingUsers, stableGetUserById]);
+  }, [
+    availability,
+    userCache,
+    loadingUsers,
+    stableGetUserById,
+    transformedAvailability,
+  ]);
 
   const visibleBaysForButtons = clubBays.slice(
     bayStartIndex,
@@ -141,15 +169,6 @@ export default function Calendar({
       weekday: "long",
       year: "numeric",
       month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatDateMobile = (dateStr) => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
       day: "numeric",
     });
   };
@@ -200,15 +219,25 @@ export default function Calendar({
   const canGoToNextBays = bayStartIndex + baysPerView < clubBays.length;
 
   const getBookingForSlot = (time, bay) => {
-    if (!availability || !Array.isArray(availability)) return null;
+    const transformedData = transformedAvailability();
+    if (!transformedData || !Array.isArray(transformedData)) return null;
 
     const selectedDateObj = new Date(selectedDate + "T00:00:00");
 
-    return availability.find((booking) => {
+    return transformedData.find((booking) => {
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      const bookingDate = new Date(booking.date);
+      // Handle both date formats
+      let bookingDate;
+      if (booking.date) {
+        bookingDate = new Date(booking.date);
+      } else if (booking.startDateTime) {
+        bookingDate = new Date(booking.startDateTime);
+      } else {
+        return false;
+      }
+
       if (bookingDate.toDateString() !== selectedDateObj.toDateString())
         return false;
 
@@ -218,15 +247,25 @@ export default function Calendar({
   };
 
   const isBookingInSlot = (time, bay) => {
-    if (!availability || !Array.isArray(availability)) return null;
+    const transformedData = transformedAvailability();
+    if (!transformedData || !Array.isArray(transformedData)) return null;
 
     const selectedDateObj = new Date(selectedDate + "T00:00:00");
 
-    return availability.find((booking) => {
+    return transformedData.find((booking) => {
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      const bookingDate = new Date(booking.date);
+      // Handle both date formats
+      let bookingDate;
+      if (booking.date) {
+        bookingDate = new Date(booking.date);
+      } else if (booking.startTime) {
+        bookingDate = new Date(booking.startTime);
+      } else {
+        return false;
+      }
+
       if (bookingDate.toDateString() !== selectedDateObj.toDateString())
         return false;
 
@@ -266,7 +305,32 @@ export default function Calendar({
     const isPast = slotDateTime.getTime() <= currentDate.getTime();
 
     if (booking) {
-      const span = getBookingSpan(booking);
+      const getAvailableSpanWithinHours = (
+        booking,
+        currentTime,
+
+        maxHour = 23
+      ) => {
+        const originalSpan = getBookingSpan(booking);
+        const [currentHour] = currentTime.split(":").map(Number);
+
+        let actualSpan = 1;
+
+        for (let i = 1; i < originalSpan; i++) {
+          const nextHour = currentHour + i;
+
+          if (nextHour > maxHour) {
+            break;
+          }
+
+          actualSpan++;
+        }
+
+        return actualSpan;
+      };
+
+      const actualSpan = getAvailableSpanWithinHours(booking, time, 6, 23);
+
       const userId = booking.userId;
       const user = userCache[userId];
       const isLoadingUser = loadingUsers.has(userId);
@@ -280,6 +344,11 @@ export default function Calendar({
         displayUserName = `User ${userId.slice(-8)}`;
       }
 
+      const maxPlayers = booking.playingTime > 1 ? 4 : 2;
+      const numberOfPlayers = booking.numberOfPlayers;
+
+      const width = `calc(100% / ${maxPlayers} * ${numberOfPlayers})`;
+
       return (
         <div className="relative h-16">
           <div
@@ -289,12 +358,15 @@ export default function Calendar({
               isPast
                 ? "bg-red-500"
                 : "bg-[#6fbf49]"
-            }  rounded-lg text-black font-bold flex flex-col justify-between p-4`}
-            style={{ height: `${span * 60}px` }}
+            } rounded-lg text-black font-bold flex flex-col justify-between p-2`}
+            style={{ height: `${actualSpan * 60}px`, width: width }}
           >
             <div className="flex-1">
               <div className="text-xs sm:text-sm font-bold truncate">
-                👤 {displayUserName} - {booking.numberOfPlayers}
+                👤 {displayUserName}
+              </div>
+              <div className="text-xs sm:text-sm font-bold truncate">
+                Player: {booking.numberOfPlayers}
               </div>
               <div className="text-xs sm:text-sm opacity-90">
                 {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
@@ -320,7 +392,7 @@ export default function Calendar({
     }
 
     if (isSlotBooked) {
-      return <div className="h-16 bg-gray-100"></div>;
+      return <div className="h-16 bg-white"></div>;
     }
 
     return (

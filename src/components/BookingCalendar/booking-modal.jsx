@@ -80,6 +80,15 @@ export default function BookingModal({
     "23:00",
   ];
 
+  const isoToLocalTime = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   useEffect(() => {
     const options = [
       { type: "single", label: "Single Member", guests: 0, price: 0 },
@@ -159,8 +168,11 @@ export default function BookingModal({
       if (booking.date !== selectedDate) return false;
       if (booking.bay !== selectedBay) return false;
 
-      const existingStart = parseInt(booking.startTime.split(":")[0]);
-      const existingEnd = parseInt(booking.endTime.split(":")[0]);
+      const existingStartLocal = isoToLocalTime(booking.startTime);
+      const existingEndLocal = isoToLocalTime(booking.endTime);
+
+      const existingStart = parseInt(existingStartLocal.split(":")[0]);
+      const existingEnd = parseInt(existingEndLocal.split(":")[0]);
 
       if (existingEnd > existingStart && newEnd > newStart) {
         return (
@@ -406,8 +418,12 @@ export default function BookingModal({
       if (booking.bay !== selectedBay) return false;
       if (booking.club !== selectedModalClub._id) return false;
 
-      const bookingStart = parseInt(booking.startTime.split(":")[0]);
-      const bookingEnd = parseInt(booking.endTime.split(":")[0]);
+      // Convert ISO times to local time format before parsing
+      const bookingStartLocal = isoToLocalTime(booking.startTime);
+      const bookingEndLocal = isoToLocalTime(booking.endTime);
+
+      const bookingStart = parseInt(bookingStartLocal.split(":")[0]);
+      const bookingEnd = parseInt(bookingEndLocal.split(":")[0]);
 
       if (bookingEnd > bookingStart) {
         return (

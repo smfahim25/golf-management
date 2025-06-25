@@ -92,7 +92,7 @@ const Sidebar = () => {
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      if (width >= 1024 && width < 1280) {
+      if (width >= 1024 && width < 1300) {
         setIsCollapsed(true);
       } else if (width >= 1280) {
         setIsCollapsed(false);
@@ -323,7 +323,7 @@ const Sidebar = () => {
   }
 
   const isUserSuperAdmin =
-    isMounted && loggedIn && !isLoading && user?.role === "superAdmin";
+    isMounted && loggedIn && !isLoading && user?.role === "admin";
 
   return (
     <TooltipProvider>

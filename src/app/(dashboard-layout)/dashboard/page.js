@@ -8,6 +8,74 @@ import useClubStore from "@/stores/ClubStore";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
+// Updated function to handle midnight crossings with validation
+const localTimeToISO = (timeString, dateString, startTimeString = null) => {
+  // Validate inputs
+  if (!timeString || !dateString) {
+    console.error("Invalid timeString or dateString:", {
+      timeString,
+      dateString,
+    });
+    throw new Error("timeString and dateString are required");
+  }
+
+  // Validate timeString format (should be HH:MM)
+  if (!/^\d{1,2}:\d{2}$/.test(timeString)) {
+    console.error("Invalid timeString format:", timeString);
+    throw new Error("timeString must be in HH:MM format");
+  }
+
+  const date = new Date(dateString);
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.error("Invalid dateString:", dateString);
+    throw new Error("Invalid dateString provided");
+  }
+
+  const [hours, minutes] = timeString.split(":").map(Number);
+
+  // Validate parsed time values
+  if (
+    isNaN(hours) ||
+    isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    console.error("Invalid time values:", { hours, minutes, timeString });
+    throw new Error("Invalid time values in timeString");
+  }
+
+  // If we have a start time and this time is earlier, it's next day
+  if (startTimeString) {
+    // Validate startTimeString format
+    if (!/^\d{1,2}:\d{2}$/.test(startTimeString)) {
+      console.error("Invalid startTimeString format:", startTimeString);
+    } else {
+      const [startHours] = startTimeString.split(":").map(Number);
+      if (!isNaN(startHours) && hours < startHours) {
+        date.setDate(date.getDate() + 1);
+      }
+    }
+  }
+
+  date.setHours(hours, minutes, 0, 0);
+
+  // Final validation before returning ISO string
+  if (isNaN(date.getTime())) {
+    console.error("Invalid date after setting hours/minutes:", {
+      hours,
+      minutes,
+      date,
+    });
+    throw new Error("Failed to create valid date");
+  }
+
+  return date.toISOString();
+};
+
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -52,37 +120,29 @@ export default function Page() {
     }
   }, [selectedClub, selectedDate, checkAvailability]);
 
-  const timeToMinutes = (timeStr) => {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    return hours * 60 + (minutes || 0);
+  const calculateEndTime = (startTime, durationHours) => {
+    const [hours, minutes] = startTime.split(":").map(Number);
+    const endHour = (hours + durationHours) % 24;
+    return `${endHour.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const hasTimeConflict = (existingBooking, newBooking) => {
     if (existingBooking.bay !== newBooking.bay) return false;
     if (existingBooking.club !== selectedClub?._id) return false;
+    console.log(newBooking);
+    const existingStart = new Date(existingBooking.startTime);
+    const existingEnd = new Date(existingBooking.endTime);
 
-    const existingStart = timeToMinutes(existingBooking.startTime);
-    const existingEnd = timeToMinutes(existingBooking.endTime);
-    const newStart = timeToMinutes(newBooking.startTime);
-    const newEnd = timeToMinutes(newBooking.endTime);
+    const newStart = new Date(
+      localTimeToISO(newBooking.startTime, selectedDate)
+    );
+    const newEnd = new Date(
+      localTimeToISO(newBooking.endTime, selectedDate, newBooking.startTime)
+    );
 
-    if (existingEnd > existingStart && newEnd > newStart) {
-      return !(newEnd <= existingStart || newStart >= existingEnd);
-    }
-
-    if (existingEnd <= existingStart) {
-      if (newEnd > newStart) {
-        return !(newEnd <= existingStart && newStart >= existingEnd);
-      } else {
-        return true;
-      }
-    }
-
-    if (newEnd <= newStart) {
-      return !(existingEnd <= newStart && existingStart >= newEnd);
-    }
-
-    return false;
+    return newStart < existingEnd && newEnd > existingStart;
   };
 
   const handleSlotClick = (time, bay) => {
@@ -90,15 +150,16 @@ export default function Page() {
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-      const slotHour = Number.parseInt(time.split(":")[0]);
+      const bookingStart = new Date(booking.startTime);
+      const bookingEnd = new Date(booking.endTime);
 
-      if (bookingEnd > bookingStart) {
-        return slotHour >= bookingStart && slotHour < bookingEnd;
-      } else {
-        return slotHour >= bookingStart || slotHour < bookingEnd;
-      }
+      const slotStart = new Date(localTimeToISO(time, selectedDate));
+
+      const slotEnd = new Date(
+        localTimeToISO(calculateEndTime(time, 1), selectedDate, time)
+      );
+
+      return slotStart < bookingEnd && slotEnd > bookingStart;
     });
 
     if (!isSlotBooked) {
@@ -180,13 +241,15 @@ export default function Page() {
         numberOfGuest: bookingData.numberOfGuests,
         bay: bookingData.bay,
         club: bookingData.clubId,
-        startTime: bookingData.startTime,
-        endTime: bookingData.endTime,
+        startTime: localTimeToISO(bookingData.startTime, selectedDate),
+        endTime: localTimeToISO(
+          bookingData.endTime,
+          selectedDate,
+          bookingData.startTime
+        ),
       };
 
       await createBooking(apiBookingData);
-
-      toast.success("Booking created successfully!");
 
       setIsModalOpen(false);
       setSelectedSlot(null);
@@ -210,8 +273,6 @@ export default function Page() {
         numberOfPlayers: joinData?.numberOfPlayers,
         numberOfGuest: joinData?.playerOption?.guests,
       });
-
-      toast.success("Successfully joined the slot!");
 
       setIsJoinModalOpen(false);
       setSelectedBooking(null);
