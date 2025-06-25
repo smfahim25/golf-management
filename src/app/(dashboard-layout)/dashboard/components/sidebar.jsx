@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useClientPathname } from "@/hooks/useClientPathName";
 import useAuthStore from "@/stores/AuthStore";
+import { useRouter } from "next/navigation";
 
 const navigation = [
   { name: "Booking Calendar", href: "/dashboard", icon: LandPlot },
@@ -76,11 +77,17 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openItem, setOpenItem] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
   const sidebarRef = useRef(null);
   const { user, logout } = useAuthStore();
+  const router = useRouter();
 
   const loggedIn = true;
   const isLoading = false;
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -311,10 +318,16 @@ const Sidebar = () => {
     );
   };
 
+  if (!isMounted) {
+    return null;
+  }
+
+  const isUserSuperAdmin =
+    isMounted && loggedIn && !isLoading && user?.role === "superAdmin";
+
   return (
     <TooltipProvider>
       <>
-        {/* Mobile overlay that appears when sidebar is open */}
         {isMobileOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-10 lg:hidden transition-opacity duration-300 ease-in-out"
@@ -381,8 +394,7 @@ const Sidebar = () => {
                 <NavItem key={item.name} item={item} target={item.target} />
               ))}
 
-              {/* Admin Section */}
-              {loggedIn && !isLoading && (
+              {isUserSuperAdmin && (
                 <>
                   {!isCollapsed && (
                     <div className="mt-6 mb-4">
@@ -405,7 +417,10 @@ const Sidebar = () => {
                   <NavItem key={item.name} item={item} isBottom />
                 ))}
                 <button
-                  onClick={logout}
+                  onClick={() => {
+                    logout();
+                    router.push("/login");
+                  }}
                   className="text-sm flex items-center gap-3 px-3 py-2.5 hover:bg-secondary hover:text-secondary-foreground w-full rounded-md"
                 >
                   <LogOut className="w-4 h-4" />

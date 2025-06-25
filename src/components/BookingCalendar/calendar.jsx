@@ -39,6 +39,7 @@ export default function Calendar({
   const { getUserById } = useUserStore();
 
   const timeSlots = [
+    "00:00",
     "01:00",
     "02:00",
     "03:00",
@@ -62,7 +63,6 @@ export default function Calendar({
     "21:00",
     "22:00",
     "23:00",
-    "00:00",
   ];
 
   const clubBays = selectedClub?.bays || [];
@@ -397,29 +397,33 @@ export default function Calendar({
           </div>
         </div>
       )}
-      <div className="bg-gray-50 p-4 sm:p-4 lg:p-6 border-b border-gray-200">
-        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 lg:gap-4">
+
+      <div className="bg-gray-50 p-2 sm:p-3 md:p-4 lg:p-6 border-b border-gray-200">
+        <div className="flex flex-col space-y-2 sm:space-y-3 md:space-y-4 xl:flex-row xl:items-center xl:justify-between xl:space-y-0 xl:gap-6">
+          {/* Book Slot Button */}
           <button
             onClick={onBookSlotClick}
-            className="bg-primary hover:bg-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
+            className="bg-primary hover:bg-green-600 text-white px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 rounded-md sm:rounded-lg font-medium transition-colors duration-200 text-sm md:text-base w-full sm:w-full md:w-auto xl:flex-shrink-0 order-1 xl:order-none"
           >
             Book a Slot
           </button>
 
-          <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:space-y-0 lg:gap-4">
+          {/* Controls Container */}
+          <div className="flex flex-col space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-0 lg:flex-row lg:items-center lg:gap-3 xl:gap-4 order-2 xl:order-none">
             {/* Date Navigation */}
-            <div className="flex items-center justify-between sm:justify-start sm:space-x-3">
+            <div className="flex items-center justify-center sm:justify-between lg:justify-start">
               <button
                 onClick={goToPreviousDay}
-                className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
+                className="p-1.5 sm:p-2 hover:bg-gray-200 rounded transition-colors duration-200 flex-shrink-0"
+                aria-label="Previous day"
               >
-                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
               </button>
 
-              <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 mx-1 sm:mx-2 md:mx-3">
                 <button
                   onClick={goToToday}
-                  className="px-3 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium"
+                  className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium whitespace-nowrap"
                 >
                   Today
                 </button>
@@ -428,21 +432,21 @@ export default function Calendar({
                   <button
                     ref={dateButtonRef}
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="flex items-center space-x-1 sm:space-x-2 px-2 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium"
+                    className="flex items-center space-x-1 sm:space-x-2 px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium min-w-0"
                   >
-                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
-                    <span className="hidden sm:inline">
+                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                    <span className="hidden sm:inline truncate">
                       {formatDate(selectedDate)}
                     </span>
-                    <span className="sm:hidden">
-                      {formatDateMobile(selectedDate)}
+                    <span className="sm:hidden truncate text-xs">
+                      {selectedDate.split("-")[2]}/{selectedDate.split("-")[1]}
                     </span>
                   </button>
 
                   {showDatePicker && (
                     <div
                       ref={datePickerRef}
-                      className="absolute top-full left-0 mt-2 z-20"
+                      className="absolute top-full left-0 mt-1 sm:mt-2 z-20"
                     >
                       <DatePicker
                         selectedDate={selectedDate}
@@ -459,22 +463,23 @@ export default function Calendar({
 
               <button
                 onClick={goToNextDay}
-                className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
+                className="p-1.5 sm:p-2 hover:bg-gray-200 rounded transition-colors duration-200 flex-shrink-0"
+                aria-label="Next day"
               >
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
               </button>
             </div>
 
             {/* Club Selection */}
-            <div className="relative">
+            <div className="relative w-full lg:w-auto lg:min-w-[180px] xl:min-w-[220px]">
               <button
                 ref={clubButtonRef}
                 onClick={() => setShowClubDropdown(!showClubDropdown)}
-                className="flex items-center justify-between w-full sm:w-auto space-x-2 px-3 py-2 sm:px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium bg-white min-w-0"
+                className="flex items-center justify-between w-full space-x-2 px-3 py-2 sm:px-4 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors duration-200 text-xs sm:text-sm font-medium bg-white min-w-0"
               >
-                <div className="flex items-center space-x-2 min-w-0">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0 flex-1">
                   <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                  <span className="truncate">
+                  <span className="truncate text-left">
                     {selectedClub?.name || "Select Club"}
                   </span>
                 </div>
@@ -484,7 +489,7 @@ export default function Calendar({
               {showClubDropdown && (
                 <div
                   ref={clubDropdownRef}
-                  className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 w-full sm:min-w-[200px] overflow-hidden"
+                  className="absolute top-full left-0 right-0 mt-1 sm:mt-2 bg-white border border-gray-300 rounded-md shadow-lg z-20 lg:right-auto lg:min-w-[220px] xl:min-w-[260px] overflow-hidden max-h-60 overflow-y-auto"
                 >
                   {clubs.map((club) => (
                     <button
@@ -493,13 +498,13 @@ export default function Calendar({
                         onClubChange(club);
                         setShowClubDropdown(false);
                       }}
-                      className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-200 font-medium text-xs sm:text-sm ${
+                      className={`w-full p-2.5 sm:p-3 text-left hover:bg-gray-50 transition-colors duration-200 font-medium text-xs sm:text-sm ${
                         selectedClub?._id === club._id ? "bg-gray-50" : ""
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="truncate">{club.name}</span>
-                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                        <span className="truncate pr-2">{club.name}</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
                           {club.bays.length} bays
                         </span>
                       </div>
@@ -510,22 +515,23 @@ export default function Calendar({
             </div>
 
             {/* Bay Selection with Navigation */}
-            <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2">
+            <div className="flex flex-col space-y-2 sm:space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:gap-2 xl:gap-3">
               {/* Bay Navigation */}
               {clubBays.length > baysPerView && (
-                <div className="flex items-center justify-center gap-1 sm:mr-2">
+                <div className="flex items-center justify-center gap-1 order-2 lg:order-1">
                   <button
                     onClick={goToPreviousBays}
                     disabled={!canGoToPreviousBays}
-                    className={`p-2 rounded transition-colors duration-200 ${
+                    className={`p-1.5 sm:p-2 rounded transition-colors duration-200 ${
                       canGoToPreviousBays
                         ? "hover:bg-gray-200 text-gray-600"
                         : "text-gray-300 cursor-not-allowed"
                     }`}
+                    aria-label="Previous bays"
                   >
                     <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
-                  <span className="text-xs text-gray-500 px-2">
+                  <span className="text-xs text-gray-500 px-1.5 sm:px-2 whitespace-nowrap">
                     {bayStartIndex + 1}-
                     {Math.min(bayStartIndex + baysPerView, clubBays.length)} of{" "}
                     {clubBays.length}
@@ -533,24 +539,25 @@ export default function Calendar({
                   <button
                     onClick={goToNextBays}
                     disabled={!canGoToNextBays}
-                    className={`p-2 rounded transition-colors duration-200 ${
+                    className={`p-1.5 sm:p-2 rounded transition-colors duration-200 ${
                       canGoToNextBays
                         ? "hover:bg-gray-200 text-gray-600"
                         : "text-gray-300 cursor-not-allowed"
                     }`}
+                    aria-label="Next bays"
                   >
                     <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               )}
 
-              {/* Bay Selection */}
-              <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200 justify-center sm:justify-start">
+              {/* Bay Selection Buttons */}
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-white rounded-md p-0.5 sm:p-1 border border-gray-200 justify-center lg:justify-center order-1 lg:order-2 flex-wrap">
                 <button
                   onClick={() => setSelectedBayView("Both")}
-                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
                     selectedBayView === "Both"
-                      ? "bg-blue-500 text-white"
+                      ? "bg-blue-500 text-white shadow-sm"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
@@ -560,13 +567,14 @@ export default function Calendar({
                   <button
                     key={bay}
                     onClick={() => setSelectedBayView(bay)}
-                    className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
+                    className={`px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
                       selectedBayView === bay
-                        ? "bg-blue-500 text-white"
+                        ? "bg-blue-500 text-white shadow-sm"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
+                    } max-w-[70px] sm:max-w-[90px] md:max-w-none overflow-hidden`}
+                    title={bay}
                   >
-                    {bay}
+                    <span className="truncate">{bay}</span>
                   </button>
                 ))}
               </div>
