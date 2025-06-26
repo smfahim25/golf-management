@@ -140,13 +140,14 @@ const useBookingStore = create((set) => ({
     }
   },
 
-  checkAvailability: async (date, clubId, bay) => {
+  checkAvailability: async (date, clubId, timezone, bay) => {
     set({ isLoading: true, error: null });
     try {
       const token = Cookies.get("token");
       const params = new URLSearchParams({
         date,
         club: clubId,
+        timezone: timezone,
         ...(bay && { bay }),
       }).toString();
 

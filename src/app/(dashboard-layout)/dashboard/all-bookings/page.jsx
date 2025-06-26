@@ -38,10 +38,10 @@ export default function Page() {
       startTime: booking.startTime,
       endTime: booking.endTime,
       players: booking.numberOfPlayers,
-      members: booking?.numberOfGuests
-        ? booking.numberOfPlayers - booking?.numberOfGuests
+      members: booking?.numberOfGuest
+        ? booking.numberOfPlayers - booking?.numberOfGuest
         : 0,
-      guests: booking?.numberOfGuests || 0,
+      guests: booking?.numberOfGuest || 0,
       originalData: booking,
     }));
   };

@@ -76,13 +76,29 @@ export default function Calendar({
     return `${hours}:${minutes}`;
   };
 
+  const convertISOToLocalDate = (isoString) => {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const transformedAvailability = useCallback(() => {
     if (!availability || !Array.isArray(availability)) return [];
 
     return availability.map((booking) => ({
       ...booking,
+      // Keep original ISO strings for proper date/time handling
+      originalStartTime: booking.startTime,
+      originalEndTime: booking.endTime,
+      // Add converted times for display
       startTime: convertISOToTimeFormat(booking.startTime),
       endTime: convertISOToTimeFormat(booking.endTime),
+      // Add converted dates
+      startDate: convertISOToLocalDate(booking.startTime),
+      endDate: convertISOToLocalDate(booking.endTime),
       date: booking.date || booking.startDateTime?.split("T")[0],
     }));
   }, [availability]);
@@ -222,74 +238,69 @@ export default function Calendar({
     const transformedData = transformedAvailability();
     if (!transformedData || !Array.isArray(transformedData)) return null;
 
-    const selectedDateObj = new Date(selectedDate + "T00:00:00");
-
     return transformedData.find((booking) => {
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      // Handle both date formats
-      let bookingDate;
-      if (booking.date) {
-        bookingDate = new Date(booking.date);
-      } else if (booking.startDateTime) {
-        bookingDate = new Date(booking.startDateTime);
-      } else {
-        return false;
+      const startDate = convertISOToLocalDate(booking.originalStartTime);
+      const endDate = convertISOToLocalDate(booking.originalEndTime);
+      const startTime = convertISOToTimeFormat(booking.originalStartTime);
+      const endTime = convertISOToTimeFormat(booking.originalEndTime);
+
+      // Check if this slot falls within the booking period
+      if (startDate === selectedDate) {
+        // Booking starts on selected date
+        return startTime === time;
+      } else if (endDate === selectedDate && startDate !== selectedDate) {
+        // Booking ends on selected date but started on previous date
+        // Show the booking block starting from 00:00 on the end date
+        return time === "00:00";
       }
 
-      if (bookingDate.toDateString() !== selectedDateObj.toDateString())
-        return false;
-
-      if (booking.startTime !== time) return false;
-      return true;
+      return false;
     });
   };
 
   const isBookingInSlot = (time, bay) => {
     const transformedData = transformedAvailability();
-    if (!transformedData || !Array.isArray(transformedData)) return null;
+    if (!transformedData || !Array.isArray(transformedData)) return false;
 
-    const selectedDateObj = new Date(selectedDate + "T00:00:00");
+    const slotHour = parseInt(time.split(":")[0]);
 
-    return transformedData.find((booking) => {
+    return transformedData.some((booking) => {
       if (booking.bay !== bay) return false;
       if (booking.club !== selectedClub?._id) return false;
 
-      // Handle both date formats
-      let bookingDate;
-      if (booking.date) {
-        bookingDate = new Date(booking.date);
-      } else if (booking.startTime) {
-        bookingDate = new Date(booking.startTime);
-      } else {
-        return false;
+      const startDate = convertISOToLocalDate(booking.originalStartTime);
+      const endDate = convertISOToLocalDate(booking.originalEndTime);
+      const startTime = convertISOToTimeFormat(booking.originalStartTime);
+      const endTime = convertISOToTimeFormat(booking.originalEndTime);
+
+      const startHour = parseInt(startTime.split(":")[0]);
+      const endHour = parseInt(endTime.split(":")[0]);
+
+      // Case 1: Booking starts and ends on the selected date (same day)
+      if (startDate === selectedDate && endDate === selectedDate) {
+        return slotHour >= startHour && slotHour < endHour;
       }
 
-      if (bookingDate.toDateString() !== selectedDateObj.toDateString())
-        return false;
-
-      const bookingStart = Number.parseInt(booking.startTime.split(":")[0]);
-      const bookingEnd = Number.parseInt(booking.endTime.split(":")[0]);
-      const slotHour = Number.parseInt(time.split(":")[0]);
-
-      if (bookingEnd > bookingStart) {
-        return slotHour >= bookingStart && slotHour < bookingEnd;
-      } else {
-        return slotHour >= bookingStart || slotHour < bookingEnd;
+      // Case 2: Booking starts on selected date but ends on next day
+      else if (startDate === selectedDate && endDate !== selectedDate) {
+        return slotHour >= startHour; // All slots from start time to end of day
       }
+
+      // Case 3: Booking started on previous date but ends on selected date
+      else if (startDate !== selectedDate && endDate === selectedDate) {
+        return slotHour < endHour; // All slots from start of day to end time
+      }
+
+      // Case 4: Multi-day booking that spans across selected date
+      else if (startDate < selectedDate && endDate > selectedDate) {
+        return true; // Entire day is booked
+      }
+
+      return false;
     });
-  };
-
-  const getBookingSpan = (booking) => {
-    const start = Number.parseInt(booking.startTime.split(":")[0]);
-    let end = Number.parseInt(booking.endTime.split(":")[0]);
-
-    if (end < start) {
-      end += 24;
-    }
-
-    return end - start;
   };
 
   const renderTimeSlot = (time, bay) => {
@@ -305,31 +316,46 @@ export default function Calendar({
     const isPast = slotDateTime.getTime() <= currentDate.getTime();
 
     if (booking) {
-      const getAvailableSpanWithinHours = (
-        booking,
-        currentTime,
-
-        maxHour = 23
-      ) => {
-        const originalSpan = getBookingSpan(booking);
+      const getAvailableSpanWithinHours = (booking, currentTime) => {
         const [currentHour] = currentTime.split(":").map(Number);
 
-        let actualSpan = 1;
+        // Use the converted local times from the booking
+        const startDate = convertISOToLocalDate(booking.originalStartTime);
+        const endDate = convertISOToLocalDate(booking.originalEndTime);
+        const startTime = convertISOToTimeFormat(booking.originalStartTime);
+        const endTime = convertISOToTimeFormat(booking.originalEndTime);
 
-        for (let i = 1; i < originalSpan; i++) {
-          const nextHour = currentHour + i;
+        const bookingStartHour = parseInt(startTime.split(":")[0]);
+        const bookingEndHour = parseInt(endTime.split(":")[0]);
 
-          if (nextHour > maxHour) {
-            break;
-          }
+        let remainingHours;
 
-          actualSpan++;
+        // Case 1: Same day booking
+        if (startDate === selectedDate && endDate === selectedDate) {
+          remainingHours = bookingEndHour - currentHour;
+        }
+        // Case 2: Booking starts on selected date, ends on next day
+        else if (startDate === selectedDate && endDate !== selectedDate) {
+          remainingHours = 24 - currentHour;
+        }
+        // Case 3: Booking started on previous date, ends on selected date
+        else if (startDate !== selectedDate && endDate === selectedDate) {
+          remainingHours = bookingEndHour - currentHour;
+        }
+        // Case 4: Multi-day booking spanning selected date
+        else if (startDate < selectedDate && endDate > selectedDate) {
+          remainingHours = 24 - currentHour;
+        } else {
+          remainingHours = bookingEndHour - currentHour;
         }
 
-        return actualSpan;
+        const endOfDayHour = 23;
+        const maxPossibleSpan = endOfDayHour - currentHour + 1;
+
+        return Math.min(Math.max(remainingHours, 1), maxPossibleSpan);
       };
 
-      const actualSpan = getAvailableSpanWithinHours(booking, time, 6, 23);
+      const actualSpan = getAvailableSpanWithinHours(booking, time);
 
       const userId = booking.userId;
       const user = userCache[userId];
@@ -350,7 +376,7 @@ export default function Calendar({
       const width = `calc(100% / ${maxPlayers} * ${numberOfPlayers})`;
 
       return (
-        <div className="relative h-16">
+        <div className="relative h-12 sm:h-14 lg:h-16">
           <div
             className={`absolute inset-0 ${
               (booking.playingTime > 1 && booking.numberOfPlayers === 4) ||
@@ -358,21 +384,70 @@ export default function Calendar({
               isPast
                 ? "bg-red-500"
                 : "bg-[#6fbf49]"
-            } rounded-lg text-black font-bold flex flex-col justify-between p-2`}
-            style={{ height: `${actualSpan * 60}px`, width: width }}
+            } rounded-md sm:rounded-lg text-black font-bold flex flex-col justify-between p-1`}
+            style={{
+              height: `${actualSpan * 60}px`,
+              width: width,
+
+              "@media (minWidth: 640px)": {
+                height: `${actualSpan * 56}px`,
+              },
+              "@media (minWidth: 1024px)": {
+                height: `${actualSpan * 60}px`,
+              },
+            }}
           >
-            <div className="flex-1">
-              <div className="text-xs sm:text-sm font-bold truncate">
-                👤 {displayUserName}
+            <div className="flex-1 min-h-0">
+              {/* Mobile: Stack vertically, show essential info only */}
+              <div className="block sm:hidden">
+                <div className="text-xs font-bold truncate leading-tight">
+                  👤{" "}
+                  {displayUserName.length > 12
+                    ? displayUserName.slice(0, 12) + "..."
+                    : displayUserName}
+                </div>
+                <div className="text-xs font-bold truncate leading-tight">
+                  P: {booking.numberOfPlayers}
+                </div>
+                <div className="text-xs opacity-90 truncate leading-tight">
+                  {formatTime(booking.startTime).slice(0, 5)} -{" "}
+                  {formatTime(booking.endTime).slice(0, 5)}
+                </div>
               </div>
-              <div className="text-xs sm:text-sm font-bold truncate">
-                Player: {booking.numberOfPlayers}
+
+              {/* Tablet: Show more info with better spacing */}
+              <div className="hidden sm:block lg:hidden">
+                <div className="text-sm font-bold truncate">
+                  👤{" "}
+                  {displayUserName.length > 15
+                    ? displayUserName.slice(0, 15) + "..."
+                    : displayUserName}
+                </div>
+                <div className="text-sm font-bold truncate">
+                  Players: {booking.numberOfPlayers}
+                </div>
+                <div className="text-sm opacity-90 truncate">
+                  {formatTime(booking.startTime)} -{" "}
+                  {formatTime(booking.endTime)}
+                </div>
               </div>
-              <div className="text-xs sm:text-sm opacity-90">
-                {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+
+              {/* Desktop: Full info display */}
+              <div className="hidden lg:block">
+                <div className="text-xs sm:text-sm font-bold text-wrap">
+                  👤 {displayUserName}
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-wrap">
+                  Player: {booking.numberOfPlayers}
+                </div>
+                <div className="text-xs sm:text-sm opacity-90">
+                  {formatTime(booking.startTime)} -{" "}
+                  {formatTime(booking.endTime)}
+                </div>
               </div>
             </div>
 
+            {/* Join button - responsive sizing and positioning */}
             {(booking.playingTime !== 1 || booking.numberOfPlayers !== 2) &&
               (booking.playingTime <= 1 || booking.numberOfPlayers !== 4) &&
               !isPast && (
@@ -381,9 +456,12 @@ export default function Calendar({
                     e.stopPropagation();
                     onJoinSlotClick(booking);
                   }}
-                  className="bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 w-6 h-6"
+                  className="bg-white hover:bg-gray-100 active:bg-gray-200 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 
+                          w-5 h-5 sm:w-6 sm:h-6 lg:w-6 lg:h-6
+                          touch-manipulation" // Better touch handling on mobile
                 >
-                  <Plus size={12} className="text-gray-700" />
+                  <Plus size={10} className="text-gray-700 sm:hidden" />
+                  <Plus size={12} className="text-gray-700 hidden sm:block" />
                 </button>
               )}
           </div>
@@ -392,16 +470,17 @@ export default function Calendar({
     }
 
     if (isSlotBooked) {
-      return <div className="h-16 bg-white"></div>;
+      return <div className="h-12 sm:h-14 lg:h-16 bg-white"></div>;
     }
 
     return (
       <button
         onClick={() => onSlotClick(time, bay)}
-        className="w-full h-16 transition-colors duration-200 group flex items-center justify-center hover:bg-blue-50"
+        className="w-full h-12 sm:h-14 lg:h-16 transition-colors duration-200 group flex items-center justify-center 
+                 hover:bg-blue-50 active:bg-blue-100 touch-manipulation" // Better mobile interaction
       >
-        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <Plus className="text-white w-3 h-3 sm:w-4 sm:h-4" />
+        <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">
+          <Plus className="text-white w-3 h-3 sm:w-3 sm:h-3 lg:w-4 lg:h-4" />
         </div>
       </button>
     );
@@ -656,64 +735,192 @@ export default function Calendar({
       </div>
 
       {/* Calendar Grid - Responsive Design */}
-      <div className="border border-gray-300 overflow-x-auto">
-        <table className="w-full border-collapse min-w-[400px] sm:min-w-[500px] lg:min-w-0">
-          {/* Header Row */}
-          <thead className="border-b bg-gradient-to-r from-gray-100 to-gray-200">
-            <tr>
-              <th className="border border-gray-300 p-2 sm:p-4 text-left text-xs sm:text-sm font-medium text-gray-600 w-16 sm:w-20 lg:w-24">
-                GMT-08
-              </th>
-              {selectedBayView === "Both" && visibleBays.length > 1 ? (
-                visibleBays.map((bay) => (
-                  <th
-                    key={bay}
-                    className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[120px] sm:min-w-[150px]"
-                  >
-                    {bay}
-                  </th>
-                ))
-              ) : (
-                <th className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[200px] sm:min-w-[250px]">
-                  {selectedBayView === "Both"
-                    ? visibleBays[0]
-                    : selectedBayView}
-                </th>
-              )}
-            </tr>
-          </thead>
+      <div className="w-full">
+        <div className="block sm:hidden">
+          <div className="space-y-4">
+            {selectedBayView === "Both" && visibleBays.length > 1 ? (
+              visibleBays.map((bay) => (
+                <div
+                  key={bay}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200"
+                >
+                  <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-4 py-3 rounded-t-lg">
+                    <h3 className="text-sm font-medium text-gray-900">{bay}</h3>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {timeSlots.map((time) => (
+                      <div key={time} className="flex items-center px-4">
+                        <div className="w-16 flex-shrink-0 flex items-center border-r-2 h-10">
+                          <span className="text-xs text-gray-600">{time}</span>
+                        </div>
+                        <div className="flex-1 ml-3">
+                          {renderTimeSlot(time, bay)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Mobile view with single bay
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="bg-gradient-to-r from-gray-100 to-gray-200 px-4 py-3 rounded-t-lg">
+                  <h3 className="text-sm font-medium text-gray-900">
+                    {selectedBayView === "Both"
+                      ? visibleBays[0]
+                      : selectedBayView}
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {timeSlots.map((time) => (
+                    <div key={time} className="flex items-center px-4 py-3">
+                      <div className="w-16 flex-shrink-0">
+                        <span className="text-xs text-gray-600">{time}</span>
+                      </div>
+                      <div className="flex-1 ml-3">
+                        {renderTimeSlot(
+                          time,
+                          selectedBayView === "Both"
+                            ? visibleBays[0]
+                            : selectedBayView
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-          {/* Time Slots */}
-          <tbody>
-            {timeSlots.map((time) => (
-              <tr key={time}>
-                <td className="border border-gray-300 p-2 sm:p-4 text-xs sm:text-sm text-gray-600 bg-white w-16 sm:w-20 lg:w-24">
-                  <span className="hidden sm:inline">{formatTime(time)}</span>
-                  <span className="sm:hidden">{time}</span>
-                </td>
-                {selectedBayView === "Both" && visibleBays.length > 1 ? (
-                  visibleBays.map((bay) => (
-                    <td
-                      key={bay}
-                      className="border border-gray-300 p-0 bg-white h-12 sm:h-16"
-                    >
-                      {renderTimeSlot(time, bay)}
-                    </td>
-                  ))
-                ) : (
-                  <td className="border border-gray-300 p-0 bg-white h-12 sm:h-16">
-                    {renderTimeSlot(
-                      time,
-                      selectedBayView === "Both"
-                        ? visibleBays[0]
-                        : selectedBayView
+        {/* Tablet View (screens 640px - 1024px) */}
+        <div className="hidden sm:block lg:hidden">
+          <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[600px]">
+                {/* Header Row */}
+                <thead className="border-b bg-gradient-to-r from-gray-100 to-gray-200">
+                  <tr>
+                    <th className="border border-gray-300 p-2 text-left text-sm font-medium text-gray-600 w-20">
+                      GMT-08
+                    </th>
+                    {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                      visibleBays.map((bay) => (
+                        <th
+                          key={bay}
+                          className="border border-gray-300 p-3 text-center text-sm font-medium text-gray-900 min-w-[140px]"
+                        >
+                          {bay}
+                        </th>
+                      ))
+                    ) : (
+                      <th className="border border-gray-300 p-3 text-center text-sm font-medium text-gray-900">
+                        {selectedBayView === "Both"
+                          ? visibleBays[0]
+                          : selectedBayView}
+                      </th>
                     )}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </tr>
+                </thead>
+
+                {/* Time Slots */}
+                <tbody>
+                  {timeSlots.map((time) => (
+                    <tr key={time}>
+                      <td className="border border-gray-300 px-2 py-1 text-sm text-gray-600 bg-white w-20">
+                        {formatTime(time)}
+                      </td>
+                      {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                        visibleBays.map((bay) => (
+                          <td
+                            key={bay}
+                            className="border border-gray-300 p-0 bg-white h-14"
+                          >
+                            {renderTimeSlot(time, bay)}
+                          </td>
+                        ))
+                      ) : (
+                        <td className="border border-gray-300 p-0 bg-white h-14">
+                          {renderTimeSlot(
+                            time,
+                            selectedBayView === "Both"
+                              ? visibleBays[0]
+                              : selectedBayView
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop View (screens >= 1024px) - Your original code */}
+        <div className="hidden lg:block">
+          <div className="border border-gray-300 overflow-x-auto">
+            <table className="w-full border-collapse min-w-[400px] sm:min-w-[500px] lg:min-w-0">
+              {/* Header Row */}
+              <thead className="border-b bg-gradient-to-r from-gray-100 to-gray-200">
+                <tr>
+                  <th className="border border-gray-300 p-2 sm:p-4 text-left text-xs sm:text-sm font-medium text-gray-600 w-16 sm:w-20 lg:w-24">
+                    GMT-08
+                  </th>
+                  {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                    visibleBays.map((bay) => (
+                      <th
+                        key={bay}
+                        className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[120px] sm:min-w-[150px]"
+                      >
+                        {bay}
+                      </th>
+                    ))
+                  ) : (
+                    <th className="border border-gray-300 p-2 sm:p-4 text-center text-xs sm:text-sm font-medium text-gray-900 min-w-[200px] sm:min-w-[250px]">
+                      {selectedBayView === "Both"
+                        ? visibleBays[0]
+                        : selectedBayView}
+                    </th>
+                  )}
+                </tr>
+              </thead>
+
+              {/* Time Slots */}
+              <tbody>
+                {timeSlots.map((time) => (
+                  <tr key={time}>
+                    <td className="border border-gray-300 p-2 sm:p-4 text-xs sm:text-sm text-gray-600 bg-white w-16 sm:w-20 lg:w-24">
+                      <span className="hidden sm:inline">
+                        {formatTime(time)}
+                      </span>
+                      <span className="sm:hidden">{time}</span>
+                    </td>
+                    {selectedBayView === "Both" && visibleBays.length > 1 ? (
+                      visibleBays.map((bay) => (
+                        <td
+                          key={bay}
+                          className="border border-gray-300 p-0 bg-white h-16"
+                        >
+                          {renderTimeSlot(time, bay)}
+                        </td>
+                      ))
+                    ) : (
+                      <td className="border border-gray-300 p-0 bg-white h-16">
+                        {renderTimeSlot(
+                          time,
+                          selectedBayView === "Both"
+                            ? visibleBays[0]
+                            : selectedBayView
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

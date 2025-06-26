@@ -5,12 +5,10 @@ import Calendar from "@/components/BookingCalendar/calendar";
 import JoinSlotModal from "@/components/BookingCalendar/join-slot-modal";
 import useBookingStore from "@/stores/BookingStore";
 import useClubStore from "@/stores/ClubStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 
-// Updated function to handle midnight crossings with validation
 const localTimeToISO = (timeString, dateString, startTimeString = null) => {
-  // Validate inputs
   if (!timeString || !dateString) {
     console.error("Invalid timeString or dateString:", {
       timeString,
@@ -19,7 +17,6 @@ const localTimeToISO = (timeString, dateString, startTimeString = null) => {
     throw new Error("timeString and dateString are required");
   }
 
-  // Validate timeString format (should be HH:MM)
   if (!/^\d{1,2}:\d{2}$/.test(timeString)) {
     console.error("Invalid timeString format:", timeString);
     throw new Error("timeString must be in HH:MM format");
@@ -27,7 +24,6 @@ const localTimeToISO = (timeString, dateString, startTimeString = null) => {
 
   const date = new Date(dateString);
 
-  // Check if date is valid
   if (isNaN(date.getTime())) {
     console.error("Invalid dateString:", dateString);
     throw new Error("Invalid dateString provided");
@@ -35,7 +31,6 @@ const localTimeToISO = (timeString, dateString, startTimeString = null) => {
 
   const [hours, minutes] = timeString.split(":").map(Number);
 
-  // Validate parsed time values
   if (
     isNaN(hours) ||
     isNaN(minutes) ||
@@ -48,9 +43,7 @@ const localTimeToISO = (timeString, dateString, startTimeString = null) => {
     throw new Error("Invalid time values in timeString");
   }
 
-  // If we have a start time and this time is earlier, it's next day
   if (startTimeString) {
-    // Validate startTimeString format
     if (!/^\d{1,2}:\d{2}$/.test(startTimeString)) {
       console.error("Invalid startTimeString format:", startTimeString);
     } else {
@@ -63,7 +56,6 @@ const localTimeToISO = (timeString, dateString, startTimeString = null) => {
 
   date.setHours(hours, minutes, 0, 0);
 
-  // Final validation before returning ISO string
   if (isNaN(date.getTime())) {
     console.error("Invalid date after setting hours/minutes:", {
       hours,
@@ -97,6 +89,18 @@ export default function Page() {
     isLoading: availabilityLoading,
   } = useBookingStore();
 
+  const timezone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (error) {
+      console.error(
+        "Failed to get timezone, falling back to Asia/Dhaka:",
+        error
+      );
+      return "Asia/Dhaka";
+    }
+  }, []);
+
   useEffect(() => {
     fetchClubs();
   }, [fetchClubs]);
@@ -111,14 +115,14 @@ export default function Page() {
     if (selectedClub && selectedDate) {
       const loadAvailability = async () => {
         try {
-          await checkAvailability(selectedDate, selectedClub._id);
+          await checkAvailability(selectedDate, selectedClub._id, timezone);
         } catch (error) {
           console.error("Failed to check availability:", error);
         }
       };
       loadAvailability();
     }
-  }, [selectedClub, selectedDate, checkAvailability]);
+  }, [selectedClub, selectedDate, checkAvailability, timezone]);
 
   const calculateEndTime = (startTime, durationHours) => {
     const [hours, minutes] = startTime.split(":").map(Number);
