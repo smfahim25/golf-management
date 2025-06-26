@@ -9,6 +9,15 @@ export default function BookingsTable({
   onSort,
   onDelete,
 }) {
+  const isoToLocalTime = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const formatTime = (timeString) => {
     if (!timeString) return timeString;
 
@@ -122,17 +131,17 @@ export default function BookingsTable({
                     <td className="px-3 py-3 text-gray-900">
                       <div
                         className="w-32 truncate"
-                        title={formatTime(booking.startTime)}
+                        title={isoToLocalTime(booking.startTime)}
                       >
-                        {formatTime(booking.startTime)}
+                        {formatTime(isoToLocalTime(booking.startTime))}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-900">
                       <div
                         className="w-32 truncate"
-                        title={formatTime(booking.endTime)}
+                        title={isoToLocalTime(booking.endTime)}
                       >
-                        {formatTime(booking.endTime)}
+                        {formatTime(isoToLocalTime(booking.endTime))}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-900">

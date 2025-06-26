@@ -411,38 +411,28 @@ export default function BookingModal({
   const isTimeSlotAvailable = (time) => {
     if (!selectedModalClub || !selectedBay) return false;
 
-    const hour = parseInt(time.split(":")[0]);
-    const potentialEnd = (hour + playingTime) % 24;
+    const dateStr = selectedDate;
+    const potentialStart = new Date(`${dateStr}T${time}:00`);
+    const potentialEnd = new Date(potentialStart);
+    potentialEnd.setHours(potentialEnd.getHours() + playingTime);
 
-    const isSlotBooked = modalAvailability.some((booking) => {
-      if (booking.bay !== selectedBay) return false;
-      if (booking.club !== selectedModalClub._id) return false;
-
-      // Convert ISO times to local time format before parsing
-      const bookingStartLocal = isoToLocalTime(booking.startTime);
-      const bookingEndLocal = isoToLocalTime(booking.endTime);
-
-      const bookingStart = parseInt(bookingStartLocal.split(":")[0]);
-      const bookingEnd = parseInt(bookingEndLocal.split(":")[0]);
-
-      if (bookingEnd > bookingStart) {
-        return (
-          (hour >= bookingStart && hour < bookingEnd) ||
-          (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
-          (hour <= bookingStart && potentialEnd >= bookingEnd)
-        );
-      } else {
-        return (
-          hour >= bookingStart ||
-          hour < bookingEnd ||
-          potentialEnd > bookingStart ||
-          potentialEnd <= bookingEnd ||
-          (hour <= bookingStart && potentialEnd >= bookingEnd)
-        );
+    return !modalAvailability.some((booking) => {
+      if (
+        booking.bay !== selectedBay ||
+        booking.club !== selectedModalClub._id
+      ) {
+        return false;
       }
-    });
 
-    return !isSlotBooked;
+      const bookingStart = new Date(booking.startTime);
+      const bookingEnd = new Date(booking.endTime);
+
+      return (
+        (potentialStart >= bookingStart && potentialStart < bookingEnd) ||
+        (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
+        (potentialStart <= bookingStart && potentialEnd >= bookingEnd)
+      );
+    });
   };
 
   if (!isOpen) return null;
@@ -450,7 +440,6 @@ export default function BookingModal({
   return (
     <div className="fixed inset-0 bg-black/20 bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
           <h2 className="text-xl font-bold text-gray-900">Book a Slot</h2>
           <button
