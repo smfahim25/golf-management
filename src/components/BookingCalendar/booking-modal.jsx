@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, CalendarIcon, ChevronDown, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import {
+  X,
+  CalendarIcon,
+  ChevronDown,
+  AlertCircle,
+  User,
+  Search,
+} from "lucide-react";
 import DatePicker from "./date-picker";
 import toast from "react-hot-toast";
 import useBookingStore from "@/stores/BookingStore";
+import useUserStore from "@/stores/UserStore";
 
 export default function BookingModal({
   isOpen,
@@ -19,6 +27,11 @@ export default function BookingModal({
 }) {
   const [bookingType, setBookingType] = useState("yourself");
   const [memberName, setMemberName] = useState("");
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [memberSearchTerm, setMemberSearchTerm] = useState("");
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [playingTime, setPlayingTime] = useState(1);
   const [playerOption, setPlayerOption] = useState({
     type: "single",
@@ -49,9 +62,12 @@ export default function BookingModal({
   const clubButtonRef = useRef(null);
   const bayDropdownRef = useRef(null);
   const bayButtonRef = useRef(null);
+  const memberDropdownRef = useRef(null);
+  const memberInputRef = useRef(null);
 
   const { checkAvailability, isLoading: availabilityLoading } =
     useBookingStore();
+  const { getAllUsers } = useUserStore();
 
   const timeSlots = [
     "00:00",
@@ -80,6 +96,18 @@ export default function BookingModal({
     "23:00",
   ];
 
+  const timezone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (error) {
+      console.error(
+        "Failed to get timezone, falling back to Asia/Dhaka:",
+        error
+      );
+      return "Asia/Dhaka";
+    }
+  }, []);
+
   const isoToLocalTime = (isoString) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString("en-US", {
@@ -88,6 +116,45 @@ export default function BookingModal({
       minute: "2-digit",
     });
   };
+
+  // Fetch users when search term changes
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (bookingType === "member") {
+        setUsersLoading(true);
+        try {
+          const result = await getAllUsers({
+            searchTerm: memberSearchTerm || undefined,
+            page: 1,
+            limit: 10,
+          });
+          if (result) {
+            setUsers(result);
+          } else {
+            setUsers([]);
+          }
+        } catch (error) {
+          console.error("Failed to fetch users:", error);
+          setUsers([]);
+        } finally {
+          setUsersLoading(false);
+        }
+      }
+    };
+
+    // Debounce the search
+    const debounceTimer = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [memberSearchTerm, bookingType, getAllUsers]);
+
+  // Load initial users when booking type changes to member
+  useEffect(() => {
+    if (bookingType === "member") {
+      setMemberSearchTerm("");
+      setSelectedMember(null);
+      setMemberName("");
+    }
+  }, [bookingType]);
 
   useEffect(() => {
     const options = [
@@ -211,6 +278,13 @@ export default function BookingModal({
     }
   };
 
+  const handleMemberSelect = (user) => {
+    setSelectedMember(user);
+    setMemberName(user.name);
+    setMemberSearchTerm(user.name);
+    setShowMemberDropdown(false);
+  };
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -316,6 +390,28 @@ export default function BookingModal({
   }, [showBayDropdown]);
 
   useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        showMemberDropdown &&
+        memberDropdownRef.current &&
+        !memberDropdownRef.current.contains(event.target) &&
+        memberInputRef.current &&
+        !memberInputRef.current.contains(event.target)
+      ) {
+        setShowMemberDropdown(false);
+      }
+    }
+
+    if (showMemberDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMemberDropdown]);
+
+  useEffect(() => {
     if (startTime) {
       const newEndTime = calculateEndTime(startTime, playingTime);
       setEndTime(newEndTime);
@@ -343,7 +439,8 @@ export default function BookingModal({
         try {
           const result = await checkAvailability(
             selectedDate,
-            selectedModalClub._id
+            selectedModalClub._id,
+            timezone
           );
           setModalAvailability(result || []);
         } catch (error) {
@@ -353,7 +450,7 @@ export default function BookingModal({
       };
       loadAvailability();
     }
-  }, [selectedModalClub, selectedDate, checkAvailability]);
+  }, [selectedModalClub, selectedDate, checkAvailability, timezone]);
 
   useEffect(() => {
     if (selectedModalClub) {
@@ -380,8 +477,8 @@ export default function BookingModal({
       return;
     }
 
-    if (bookingType === "member" && !memberName.trim()) {
-      toast.error("Please enter member name");
+    if (bookingType === "member" && !selectedMember) {
+      toast.error("Please select a member");
       return;
     }
 
@@ -394,7 +491,8 @@ export default function BookingModal({
 
     const bookingData = {
       bookingType,
-      memberName: bookingType === "member" ? memberName : "",
+      memberName: bookingType === "member" ? selectedMember.name : "",
+      memberId: bookingType === "member" ? selectedMember._id : null,
       playingTime,
       numberOfPlayers: playerOption.guests + 1,
       numberOfGuests: playerOption.guests,
@@ -572,13 +670,82 @@ export default function BookingModal({
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Select Member
               </label>
-              <input
-                type="text"
-                value={memberName}
-                onChange={(e) => setMemberName(e.target.value)}
-                placeholder="Enter member name"
-                className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50"
-              />
+              <div className="relative">
+                <div className="relative">
+                  <input
+                    ref={memberInputRef}
+                    type="text"
+                    value={memberSearchTerm}
+                    onChange={(e) => {
+                      setMemberSearchTerm(e.target.value);
+                      setShowMemberDropdown(true);
+                      if (!e.target.value) {
+                        setSelectedMember(null);
+                        setMemberName("");
+                      }
+                    }}
+                    onFocus={() => setShowMemberDropdown(true)}
+                    placeholder="Search and select member..."
+                    className="w-full p-4 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50"
+                  />
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                    {usersLoading && (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                    )}
+                  </div>
+                </div>
+
+                {showMemberDropdown && (
+                  <div
+                    ref={memberDropdownRef}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto"
+                  >
+                    {usersLoading ? (
+                      <div className="p-4 text-center text-gray-500">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                        Loading members...
+                      </div>
+                    ) : users.length > 0 ? (
+                      users.map((user) => (
+                        <button
+                          key={user._id}
+                          onClick={() => handleMemberSelect(user)}
+                          className={`w-full p-4 text-left hover:bg-blue-50 transition-colors duration-200 border-b border-gray-100 last:border-b-0 ${
+                            selectedMember?._id === user._id
+                              ? "bg-blue-50 text-blue-900"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">
+                                {user.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {user.email}
+                              </div>
+                            </div>
+                            {user.role && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                {user.role}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">
+                        {memberSearchTerm
+                          ? "No members found"
+                          : "Start typing to search members"}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

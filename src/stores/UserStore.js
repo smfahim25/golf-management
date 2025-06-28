@@ -57,10 +57,11 @@ const useUserStore = create((set) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch users");
       set({
-        users: data.data,
+        users: data.data.users,
         totalUsers: data.meta?.total || 0,
         isLoading: false,
       });
+      return data.data.users;
     } catch (err) {
       set({ error: err.message, isLoading: false });
     }
