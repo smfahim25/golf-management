@@ -29,7 +29,7 @@ export default function Page() {
   } = useBookingStore();
 
   const transformBookingData = (apiBookings) => {
-    return apiBookings.map((booking) => ({
+    return apiBookings?.map((booking) => ({
       id: booking._id,
       date: new Date(booking.date).toLocaleDateString(),
       name: booking.userId?.name || "Unknown User",

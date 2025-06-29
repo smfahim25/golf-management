@@ -3,6 +3,7 @@
 import BookingModal from "@/components/BookingCalendar/booking-modal";
 import Calendar from "@/components/BookingCalendar/calendar";
 import JoinSlotModal from "@/components/BookingCalendar/join-slot-modal";
+import useAuthStore from "@/stores/AuthStore";
 import useBookingStore from "@/stores/BookingStore";
 import useClubStore from "@/stores/ClubStore";
 import { useState, useEffect, useMemo } from "react";
@@ -85,9 +86,10 @@ export default function Page() {
     availability,
     checkAvailability,
     createBooking,
-    updateBooking,
+    joinBooking,
     isLoading: availabilityLoading,
   } = useBookingStore();
+  const { user } = useAuthStore();
 
   const timezone = useMemo(() => {
     try {
@@ -135,7 +137,7 @@ export default function Page() {
   const hasTimeConflict = (existingBooking, newBooking) => {
     if (existingBooking.bay !== newBooking.bay) return false;
     if (existingBooking.club !== selectedClub?._id) return false;
-    console.log(newBooking);
+
     const existingStart = new Date(existingBooking.startTime);
     const existingEnd = new Date(existingBooking.endTime);
 
@@ -236,13 +238,32 @@ export default function Page() {
     setIsBookingLoading(true);
 
     try {
+      // Create members array based on booking type
+      const members = [];
+
+      if (bookingData.bookingType === "yourself") {
+        // Book for yourself - add current user to members array
+        if (!user?._id) {
+          throw new Error("User not logged in");
+        }
+        members.push({
+          userId: user._id,
+          guests: bookingData.numberOfGuests || 0,
+        });
+      } else if (bookingData.bookingType === "member") {
+        // Book for another member - add selected member to members array
+        if (!bookingData.memberId) {
+          throw new Error("Member ID is required");
+        }
+        members.push({
+          userId: bookingData.memberId,
+          guests: bookingData.numberOfGuests || 0,
+        });
+      }
+
       const apiBookingData = {
         date: selectedDate,
-        bookedFor: bookingData.bookingType === "yourself" ? "self" : "member",
-        memberName: bookingData.memberName || undefined,
         playingTime: bookingData.playingTime,
-        numberOfPlayers: bookingData.numberOfPlayers,
-        numberOfGuest: bookingData.numberOfGuests,
         bay: bookingData.bay,
         club: bookingData.clubId,
         startTime: localTimeToISO(bookingData.startTime, selectedDate),
@@ -251,6 +272,7 @@ export default function Page() {
           selectedDate,
           bookingData.startTime
         ),
+        members: members,
       };
 
       await createBooking(apiBookingData);
@@ -259,6 +281,8 @@ export default function Page() {
       setSelectedSlot(null);
 
       await refreshAvailability();
+
+      toast.success("Booking created successfully!");
     } catch (error) {
       console.error("Failed to create booking:", error);
       toast.error(
@@ -273,15 +297,21 @@ export default function Page() {
 
   const handleJoinSlotConfirm = async (joinData) => {
     try {
-      await updateBooking(joinData.bookingId, {
-        numberOfPlayers: joinData?.numberOfPlayers,
-        numberOfGuest: joinData?.playerOption?.guests,
+      if (!user?._id) {
+        throw new Error("User not logged in");
+      }
+      console.log(joinData);
+      await joinBooking({
+        bookingId: joinData.bookingId,
+        guests: joinData?.playerOption?.guests || 0,
       });
 
       setIsJoinModalOpen(false);
       setSelectedBooking(null);
 
       await refreshAvailability();
+
+      toast.success("Successfully joined the booking!");
     } catch (error) {
       console.error("Failed to join slot:", error);
       toast.error("Failed to join slot. Please try again.");

@@ -14,9 +14,20 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
     if (!booking?.playingTime) return;
 
     const playingTime = booking.playingTime;
+
+    // Calculate current total members in the booking
+    const currentTotalMembers =
+      booking.members?.reduce((total, member) => {
+        return total + 1 + (member.guests || 0); // 1 for the member + their guests
+      }, 0) || 0;
+
     const options = [
       { value: "single", label: "Single Member", guests: 0, price: 0 },
     ];
+
+    // Max capacity is 4 players for 2-hour and 4-hour sessions
+    const maxCapacity = playingTime === 2 || playingTime === 4 ? 4 : Infinity;
+    const remainingSlots = maxCapacity - currentTotalMembers;
 
     if (playingTime === 1) {
       options.push({
@@ -26,27 +37,63 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
         price: 10,
       });
     } else if (playingTime === 2) {
-      options.push(
-        { value: "guest1", label: "Member with 1 Guest", guests: 1, price: 20 },
-        {
+      // Only add options that don't exceed remaining capacity
+      if (remainingSlots >= 2) {
+        // Member + 1 guest = 2 total
+        options.push({
+          value: "guest1",
+          label: "Member with 1 Guest",
+          guests: 1,
+          price: 20,
+        });
+      }
+      if (remainingSlots >= 3) {
+        // Member + 2 guests = 3 total
+        options.push({
           value: "guest2",
           label: "Member with 2 Guests",
           guests: 2,
           price: 35,
-        },
-        { value: "guest3", label: "Member with 3 Guests", guests: 3, price: 45 }
-      );
+        });
+      }
+      if (remainingSlots >= 4) {
+        // Member + 3 guests = 4 total
+        options.push({
+          value: "guest3",
+          label: "Member with 3 Guests",
+          guests: 3,
+          price: 45,
+        });
+      }
     } else if (playingTime === 4) {
-      options.push(
-        { value: "guest1", label: "Member with 1 Guest", guests: 1, price: 40 },
-        {
+      // Only add options that don't exceed remaining capacity
+      if (remainingSlots >= 2) {
+        // Member + 1 guest = 2 total
+        options.push({
+          value: "guest1",
+          label: "Member with 1 Guest",
+          guests: 1,
+          price: 40,
+        });
+      }
+      if (remainingSlots >= 3) {
+        // Member + 2 guests = 3 total
+        options.push({
           value: "guest2",
           label: "Member with 2 Guests",
           guests: 2,
           price: 70,
-        },
-        { value: "guest3", label: "Member with 3 Guests", guests: 3, price: 90 }
-      );
+        });
+      }
+      if (remainingSlots >= 4) {
+        // Member + 3 guests = 4 total
+        options.push({
+          value: "guest3",
+          label: "Member with 3 Guests",
+          guests: 3,
+          price: 90,
+        });
+      }
     }
 
     setPlayerOptions(options);
@@ -68,7 +115,7 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
         setNumberOfPlayers("single");
       }
     }
-  }, [booking?.playingTime, booking?.numberOfGuest]);
+  }, [booking?.playingTime, booking?.numberOfGuest, booking?.members]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -103,7 +150,7 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
   const getSelectedOption = () => {
     return playerOptions.find((option) => option.value === numberOfPlayers);
   };
-
+  console.log(booking);
   const handleConfirm = () => {
     const selectedOption = getSelectedOption();
     const totalPlayers = 1 + selectedOption.guests;
@@ -113,6 +160,27 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
       playerOption: selectedOption,
     });
   };
+
+  const getCurrentCapacityInfo = () => {
+    if (
+      !booking?.members ||
+      (booking.playingTime !== 2 && booking.playingTime !== 4)
+    ) {
+      return null;
+    }
+
+    const currentTotal = booking.members.reduce((total, member) => {
+      return total + 1 + (member.guests || 0);
+    }, 0);
+
+    return {
+      current: currentTotal,
+      max: 4,
+      remaining: 4 - currentTotal,
+    };
+  };
+
+  const capacityInfo = getCurrentCapacityInfo();
 
   if (!isOpen || !booking) return null;
 
@@ -154,6 +222,13 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
                   ? booking.memberName
                   : "Member"}
               </p>
+              {capacityInfo && (
+                <p>
+                  <span className="font-medium">Capacity:</span>{" "}
+                  {capacityInfo.current}/{capacityInfo.max} players (
+                  {capacityInfo.remaining} slots remaining)
+                </p>
+              )}
             </div>
           </div>
 
@@ -209,6 +284,11 @@ export default function JoinSlotModal({ isOpen, onClose, booking, onConfirm }) {
             <p className="text-xs text-gray-500 mt-2 bg-blue-50 p-3 rounded-lg italic">
               Please note that additional fees for guests will apply, determined
               by the chosen session duration.
+              {capacityInfo && capacityInfo.remaining < 4 && (
+                <span className="block mt-1 text-orange-600 font-medium">
+                  Limited slots available due to capacity restrictions.
+                </span>
+              )}
             </p>
           </div>
 

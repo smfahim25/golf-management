@@ -168,6 +168,32 @@ const useBookingStore = create((set) => ({
       return [];
     }
   },
+  joinBooking: async ({ bookingId, guests }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = Cookies.get("token");
+
+      const res = await fetch(`${API_BASE}/bookings/join`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bookingId, guests }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to join booking");
+
+      set({ isLoading: false });
+      toast.success("Joined booking successfully!");
+      return data;
+    } catch (err) {
+      set({ error: err.message, isLoading: false });
+      toast.error(err.message);
+      return null;
+    }
+  },
 }));
 
 export default useBookingStore;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   X,
   CalendarIcon,
@@ -8,6 +8,11 @@ import {
   AlertCircle,
   User,
   Search,
+  Clock,
+  Users,
+  MapPin,
+  DollarSign,
+  Loader2,
 } from "lucide-react";
 import DatePicker from "./date-picker";
 import toast from "react-hot-toast";
@@ -24,7 +29,9 @@ export default function BookingModal({
   existingBookings,
   selectedClub,
   clubs,
+  isBookingLoading = false,
 }) {
+  // State management
   const [bookingType, setBookingType] = useState("yourself");
   const [memberName, setMemberName] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
@@ -51,7 +58,9 @@ export default function BookingModal({
   const [modalAvailability, setModalAvailability] = useState([]);
   const [showBayDropdown, setShowBayDropdown] = useState(false);
   const [playerOptions, setPlayerOptions] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
 
+  // Refs for click outside detection
   const datePickerRef = useRef(null);
   const dateButtonRef = useRef(null);
   const playersDropdownRef = useRef(null);
@@ -69,33 +78,15 @@ export default function BookingModal({
     useBookingStore();
   const { getAllUsers } = useUserStore();
 
-  const timeSlots = [
-    "00:00",
-    "01:00",
-    "02:00",
-    "03:00",
-    "04:00",
-    "05:00",
-    "06:00",
-    "07:00",
-    "08:00",
-    "09:00",
-    "10:00",
-    "11:00",
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00",
-    "21:00",
-    "22:00",
-    "23:00",
-  ];
+  // Time slots configuration
+  const timeSlots = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => {
+      const hour = i.toString().padStart(2, "0");
+      return `${hour}:00`;
+    });
+  }, []);
 
+  // Timezone detection
   const timezone = useMemo(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -108,46 +99,128 @@ export default function BookingModal({
     }
   }, []);
 
-  const isoToLocalTime = (isoString) => {
+  // Utility functions
+  const isoToLocalTime = useCallback((isoString) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
+  }, []);
 
-  // Fetch users when search term changes
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (bookingType === "member") {
-        setUsersLoading(true);
-        try {
-          const result = await getAllUsers({
-            searchTerm: memberSearchTerm || undefined,
-            page: 1,
-            limit: 10,
-          });
-          if (result) {
-            setUsers(result);
-          } else {
+  const formatTime = useCallback((time) => {
+    const hour = parseInt(time.split(":")[0]);
+    if (hour === 0) return "12:00 AM";
+    if (hour < 12) return `${hour}:00 AM`;
+    if (hour === 12) return "12:00 PM";
+    return `${hour - 12}:00 PM`;
+  }, []);
+
+  const formatDate = useCallback((dateStr) => {
+    const date = new Date(dateStr + "T00:00:00");
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }, []);
+
+  const calculateEndTime = useCallback((start, duration) => {
+    if (!start) return "";
+    const startHour = parseInt(start.split(":")[0]);
+    const endHour = (startHour + duration) % 24;
+    return `${endHour.toString().padStart(2, "0")}:00`;
+  }, []);
+
+  // Debounced user search
+  const debouncedSearch = useCallback(
+    (searchTerm) => {
+      const fetchUsers = async () => {
+        if (bookingType === "member") {
+          setUsersLoading(true);
+          try {
+            const result = await getAllUsers({
+              searchTerm: searchTerm || undefined,
+              page: 1,
+              limit: 10,
+            });
+            setUsers(result || []);
+          } catch (error) {
+            console.error("Failed to fetch users:", error);
             setUsers([]);
+            toast.error("Failed to fetch users");
+          } finally {
+            setUsersLoading(false);
           }
-        } catch (error) {
-          console.error("Failed to fetch users:", error);
-          setUsers([]);
-        } finally {
-          setUsersLoading(false);
         }
-      }
+      };
+
+      const timer = setTimeout(fetchUsers, 300);
+      return () => clearTimeout(timer);
+    },
+    [bookingType, getAllUsers]
+  );
+
+  // Player options based on playing time
+  useEffect(() => {
+    const options = [
+      { type: "single", label: "Single Member", guests: 0, price: 0 },
+    ];
+
+    const priceMap = {
+      1: { guest1: 10 },
+      2: { guest1: 20, guest2: 35, guest3: 45 },
+      4: { guest1: 40, guest2: 70, guest3: 90 },
     };
 
-    // Debounce the search
-    const debounceTimer = setTimeout(fetchUsers, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [memberSearchTerm, bookingType, getAllUsers]);
+    if (priceMap[playingTime]) {
+      const prices = priceMap[playingTime];
+      if (prices.guest1) {
+        options.push({
+          type: "guest1",
+          label: "Member with 1 Guest",
+          guests: 1,
+          price: prices.guest1,
+        });
+      }
+      if (prices.guest2) {
+        options.push({
+          type: "guest2",
+          label: "Member with 2 Guests",
+          guests: 2,
+          price: prices.guest2,
+        });
+      }
+      if (prices.guest3) {
+        options.push({
+          type: "guest3",
+          label: "Member with 3 Guests",
+          guests: 3,
+          price: prices.guest3,
+        });
+      }
+    }
 
-  // Load initial users when booking type changes to member
+    setPlayerOptions(options);
+
+    // Reset player option if invalid for current playing time
+    if (
+      (playingTime === 1 && playerOption.guests > 1) ||
+      !options.find((opt) => opt.type === playerOption.type)
+    ) {
+      setPlayerOption(options[0]);
+    }
+  }, [playingTime, playerOption.type, playerOption.guests]);
+
+  // User search effect
+  useEffect(() => {
+    const cleanup = debouncedSearch(memberSearchTerm);
+    return cleanup;
+  }, [memberSearchTerm, debouncedSearch]);
+
+  // Reset member selection when booking type changes
   useEffect(() => {
     if (bookingType === "member") {
       setMemberSearchTerm("");
@@ -156,73 +229,8 @@ export default function BookingModal({
     }
   }, [bookingType]);
 
-  useEffect(() => {
-    const options = [
-      { type: "single", label: "Single Member", guests: 0, price: 0 },
-    ];
-
-    if (playingTime === 1) {
-      options.push({
-        type: "guest1",
-        label: "Member with 1 Guest",
-        guests: 1,
-        price: 10,
-      });
-    } else if (playingTime === 2) {
-      options.push(
-        { type: "guest1", label: "Member with 1 Guest", guests: 1, price: 20 },
-        { type: "guest2", label: "Member with 2 Guests", guests: 2, price: 35 },
-        { type: "guest3", label: "Member with 3 Guests", guests: 3, price: 45 }
-      );
-    } else if (playingTime === 4) {
-      options.push(
-        { type: "guest1", label: "Member with 1 Guest", guests: 1, price: 40 },
-        {
-          type: "guest2",
-          label: "Member with 2 Guests",
-          guests: 2,
-          price: 70,
-        },
-        { type: "guest3", label: "Member with 3 Guests", guests: 3, price: 90 }
-      );
-    }
-
-    setPlayerOptions(options);
-
-    if (
-      (playingTime === 1 && playerOption.guests > 1) ||
-      (playingTime !== 1 && playerOption.type === "single")
-    ) {
-      setPlayerOption(options[0]);
-    }
-  }, [playingTime]);
-
-  const formatTime = (time) => {
-    const hour = parseInt(time.split(":")[0]);
-    if (hour === 0) return "12:00 AM";
-    if (hour < 12) return `${hour}:00 AM`;
-    if (hour === 12) return "12:00 PM";
-    return `${hour - 12}:00 PM`;
-  };
-
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const calculateEndTime = (start, duration) => {
-    if (!start) return "";
-    const startHour = parseInt(start.split(":")[0]);
-    const endHour = (startHour + duration) % 24;
-    return `${endHour.toString().padStart(2, "0")}:00`;
-  };
-
-  const checkForConflicts = () => {
+  // Conflict checking
+  const checkForConflicts = useCallback(() => {
     if (!startTime || !endTime || !selectedBay) {
       setConflictWarning("");
       return false;
@@ -232,15 +240,16 @@ export default function BookingModal({
     const newEnd = parseInt(endTime.split(":")[0]);
 
     const conflict = existingBookings.find((booking) => {
-      if (booking.date !== selectedDate) return false;
-      if (booking.bay !== selectedBay) return false;
+      if (booking.date !== selectedDate || booking.bay !== selectedBay) {
+        return false;
+      }
 
       const existingStartLocal = isoToLocalTime(booking.startTime);
       const existingEndLocal = isoToLocalTime(booking.endTime);
-
       const existingStart = parseInt(existingStartLocal.split(":")[0]);
       const existingEnd = parseInt(existingEndLocal.split(":")[0]);
 
+      // Handle conflicts considering overnight bookings
       if (existingEnd > existingStart && newEnd > newStart) {
         return (
           (newStart >= existingStart && newStart < existingEnd) ||
@@ -266,219 +275,89 @@ export default function BookingModal({
     });
 
     if (conflict) {
-      setConflictWarning(
-        `This time conflicts with an existing booking (${formatTime(
-          conflict.startTime
-        )} - ${formatTime(conflict.endTime)})`
-      );
+      const conflictMessage = `Time conflicts with existing booking (${formatTime(
+        isoToLocalTime(conflict.startTime)
+      )} - ${formatTime(isoToLocalTime(conflict.endTime))})`;
+      setConflictWarning(conflictMessage);
       return true;
     } else {
       setConflictWarning("");
       return false;
     }
-  };
+  }, [
+    startTime,
+    endTime,
+    selectedBay,
+    existingBookings,
+    selectedDate,
+    isoToLocalTime,
+    formatTime,
+  ]);
 
-  const handleMemberSelect = (user) => {
+  // Time slot availability checking
+  const isTimeSlotAvailable = useCallback(
+    (time) => {
+      if (!selectedModalClub || !selectedBay) return false;
+
+      const dateStr = selectedDate;
+      const potentialStart = new Date(`${dateStr}T${time}:00`);
+      const potentialEnd = new Date(potentialStart);
+      potentialEnd.setHours(potentialEnd.getHours() + playingTime);
+
+      return !modalAvailability.some((booking) => {
+        if (
+          booking.bay !== selectedBay ||
+          booking.club !== selectedModalClub._id
+        ) {
+          return false;
+        }
+
+        const bookingStart = new Date(booking.startTime);
+        const bookingEnd = new Date(booking.endTime);
+
+        return (
+          (potentialStart >= bookingStart && potentialStart < bookingEnd) ||
+          (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
+          (potentialStart <= bookingStart && potentialEnd >= bookingEnd)
+        );
+      });
+    },
+    [
+      selectedModalClub,
+      selectedBay,
+      selectedDate,
+      playingTime,
+      modalAvailability,
+    ]
+  );
+
+  // Event handlers
+  const handleMemberSelect = useCallback((user) => {
     setSelectedMember(user);
     setMemberName(user.name);
     setMemberSearchTerm(user.name);
     setShowMemberDropdown(false);
-  };
+    setFormErrors((prev) => ({ ...prev, member: null }));
+  }, []);
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showDatePicker &&
-        datePickerRef.current &&
-        !datePickerRef.current.contains(event.target) &&
-        dateButtonRef.current &&
-        !dateButtonRef.current.contains(event.target)
-      ) {
-        setShowDatePicker(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showDatePicker]);
+  // Form validation
+  const validateForm = useCallback(() => {
+    const errors = {};
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showPlayersDropdown &&
-        playersDropdownRef.current &&
-        !playersDropdownRef.current.contains(event.target) &&
-        playersButtonRef.current &&
-        !playersButtonRef.current.contains(event.target)
-      ) {
-        setShowPlayersDropdown(false);
-      }
-    }
-
-    if (showPlayersDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showPlayersDropdown]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showStartTimeDropdown &&
-        startTimeDropdownRef.current &&
-        !startTimeDropdownRef.current.contains(event.target) &&
-        startTimeButtonRef.current &&
-        !startTimeButtonRef.current.contains(event.target)
-      ) {
-        setShowStartTimeDropdown(false);
-      }
-    }
-
-    if (showStartTimeDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showStartTimeDropdown]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showClubDropdown &&
-        clubDropdownRef.current &&
-        !clubDropdownRef.current.contains(event.target) &&
-        clubButtonRef.current &&
-        !clubButtonRef.current.contains(event.target)
-      ) {
-        setShowClubDropdown(false);
-      }
-    }
-
-    if (showClubDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showClubDropdown]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showBayDropdown &&
-        bayDropdownRef.current &&
-        !bayDropdownRef.current.contains(event.target) &&
-        bayButtonRef.current &&
-        !bayButtonRef.current.contains(event.target)
-      ) {
-        setShowBayDropdown(false);
-      }
-    }
-
-    if (showBayDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showBayDropdown]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        showMemberDropdown &&
-        memberDropdownRef.current &&
-        !memberDropdownRef.current.contains(event.target) &&
-        memberInputRef.current &&
-        !memberInputRef.current.contains(event.target)
-      ) {
-        setShowMemberDropdown(false);
-      }
-    }
-
-    if (showMemberDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showMemberDropdown]);
-
-  useEffect(() => {
-    if (startTime) {
-      const newEndTime = calculateEndTime(startTime, playingTime);
-      setEndTime(newEndTime);
-      setTimeout(checkForConflicts, 0);
-    }
-  }, [startTime, playingTime]);
-
-  useEffect(() => {
-    if (startTime && endTime) {
-      checkForConflicts();
-    }
-  }, [selectedBay]);
-
-  useEffect(() => {
-    if (selectedSlot) {
-      setStartTime(selectedSlot.time || "");
-      setSelectedBay(selectedSlot.bay || "");
-      setSelectedModalClub(selectedClub);
-    }
-  }, [selectedSlot, selectedClub]);
-
-  useEffect(() => {
-    if (selectedModalClub && selectedDate) {
-      const loadAvailability = async () => {
-        try {
-          const result = await checkAvailability(
-            selectedDate,
-            selectedModalClub._id,
-            timezone
-          );
-          setModalAvailability(result || []);
-        } catch (error) {
-          console.error("Failed to check availability:", error);
-          setModalAvailability([]);
-        }
-      };
-      loadAvailability();
-    }
-  }, [selectedModalClub, selectedDate, checkAvailability, timezone]);
-
-  useEffect(() => {
-    if (selectedModalClub) {
-      const clubBays = selectedModalClub.bays || [];
-      if (clubBays.length > 0 && !clubBays.includes(selectedBay)) {
-        setSelectedBay(clubBays[0]);
-      }
-    }
-  }, [selectedModalClub]);
-
-  const handleConfirm = () => {
-    if (!startTime) {
-      toast.error("Please select a start time");
-      return;
-    }
-
-    if (!selectedBay) {
-      toast.error("Please select a bay");
-      return;
-    }
-
-    if (!selectedModalClub) {
-      toast.error("Please select a club");
-      return;
-    }
-
+    if (!startTime) errors.startTime = "Please select a start time";
+    if (!selectedBay) errors.bay = "Please select a bay";
+    if (!selectedModalClub) errors.club = "Please select a club";
     if (bookingType === "member" && !selectedMember) {
-      toast.error("Please select a member");
+      errors.member = "Please select a member";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [startTime, selectedBay, selectedModalClub, bookingType, selectedMember]);
+
+  const handleConfirm = useCallback(() => {
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -504,34 +383,137 @@ export default function BookingModal({
     };
 
     onConfirm(bookingData);
-  };
+  }, [
+    validateForm,
+    checkForConflicts,
+    bookingType,
+    selectedMember,
+    playingTime,
+    playerOption,
+    selectedBay,
+    startTime,
+    endTime,
+    selectedModalClub,
+    onConfirm,
+  ]);
 
-  const isTimeSlotAvailable = (time) => {
-    if (!selectedModalClub || !selectedBay) return false;
-
-    const dateStr = selectedDate;
-    const potentialStart = new Date(`${dateStr}T${time}:00`);
-    const potentialEnd = new Date(potentialStart);
-    potentialEnd.setHours(potentialEnd.getHours() + playingTime);
-
-    return !modalAvailability.some((booking) => {
-      if (
-        booking.bay !== selectedBay ||
-        booking.club !== selectedModalClub._id
-      ) {
-        return false;
+  // Click outside handlers
+  const useClickOutside = (ref, buttonRef, isOpen, setIsOpen) => {
+    useEffect(() => {
+      function handleClickOutside(event) {
+        if (
+          isOpen &&
+          ref.current &&
+          !ref.current.contains(event.target) &&
+          buttonRef.current &&
+          !buttonRef.current.contains(event.target)
+        ) {
+          setIsOpen(false);
+        }
       }
 
-      const bookingStart = new Date(booking.startTime);
-      const bookingEnd = new Date(booking.endTime);
+      if (isOpen) {
+        document.addEventListener("mousedown", handleClickOutside);
+      }
 
-      return (
-        (potentialStart >= bookingStart && potentialStart < bookingEnd) ||
-        (potentialEnd > bookingStart && potentialEnd <= bookingEnd) ||
-        (potentialStart <= bookingStart && potentialEnd >= bookingEnd)
-      );
-    });
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [isOpen, ref, buttonRef, setIsOpen]);
   };
+
+  useClickOutside(
+    datePickerRef,
+    dateButtonRef,
+    showDatePicker,
+    setShowDatePicker
+  );
+  useClickOutside(
+    playersDropdownRef,
+    playersButtonRef,
+    showPlayersDropdown,
+    setShowPlayersDropdown
+  );
+  useClickOutside(
+    startTimeDropdownRef,
+    startTimeButtonRef,
+    showStartTimeDropdown,
+    setShowStartTimeDropdown
+  );
+  useClickOutside(
+    clubDropdownRef,
+    clubButtonRef,
+    showClubDropdown,
+    setShowClubDropdown
+  );
+  useClickOutside(
+    bayDropdownRef,
+    bayButtonRef,
+    showBayDropdown,
+    setShowBayDropdown
+  );
+  useClickOutside(
+    memberDropdownRef,
+    memberInputRef,
+    showMemberDropdown,
+    setShowMemberDropdown
+  );
+
+  // Initialize form when modal opens
+  useEffect(() => {
+    if (isOpen && selectedSlot) {
+      setStartTime(selectedSlot.time || "");
+      setSelectedBay(selectedSlot.bay || "");
+      setSelectedModalClub(selectedClub);
+      setFormErrors({});
+    }
+  }, [isOpen, selectedSlot, selectedClub]);
+
+  // Load availability when club or date changes
+  useEffect(() => {
+    if (selectedModalClub && selectedDate) {
+      const loadAvailability = async () => {
+        try {
+          const result = await checkAvailability(
+            selectedDate,
+            selectedModalClub._id,
+            timezone
+          );
+          setModalAvailability(result || []);
+        } catch (error) {
+          console.error("Failed to check availability:", error);
+          setModalAvailability([]);
+        }
+      };
+      loadAvailability();
+    }
+  }, [selectedModalClub, selectedDate, checkAvailability, timezone]);
+
+  // Auto-select first bay when club changes
+  useEffect(() => {
+    if (selectedModalClub) {
+      const clubBays = selectedModalClub.bays || [];
+      if (clubBays.length > 0 && !clubBays.includes(selectedBay)) {
+        setSelectedBay(clubBays[0]);
+      }
+    }
+  }, [selectedModalClub, selectedBay]);
+
+  // Update end time when start time or playing time changes
+  useEffect(() => {
+    if (startTime) {
+      const newEndTime = calculateEndTime(startTime, playingTime);
+      setEndTime(newEndTime);
+      setTimeout(checkForConflicts, 0);
+    }
+  }, [startTime, playingTime, calculateEndTime, checkForConflicts]);
+
+  // Check conflicts when bay changes
+  useEffect(() => {
+    if (startTime && endTime) {
+      checkForConflicts();
+    }
+  }, [selectedBay, startTime, endTime, checkForConflicts]);
 
   if (!isOpen) return null;
 

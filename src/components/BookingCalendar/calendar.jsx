@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import DatePicker from "./date-picker";
 import useUserStore from "@/stores/UserStore";
+import useAuthStore from "@/stores/AuthStore";
 
 export default function Calendar({
   onSlotClick,
@@ -37,6 +38,7 @@ export default function Calendar({
   const clubButtonRef = useRef(null);
 
   const { getUserById } = useUserStore();
+  const { user } = useAuthStore();
 
   const timeSlots = [
     "00:00",
@@ -93,15 +95,24 @@ export default function Calendar({
       // Keep original ISO strings for proper date/time handling
       originalStartTime: booking.startTime,
       originalEndTime: booking.endTime,
-      // Add converted times for display
+
       startTime: convertISOToTimeFormat(booking.startTime),
       endTime: convertISOToTimeFormat(booking.endTime),
-      // Add converted dates
+
       startDate: convertISOToLocalDate(booking.startTime),
       endDate: convertISOToLocalDate(booking.endTime),
       date: booking.date || booking.startDateTime?.split("T")[0],
+
+      numberOfPlayers:
+        booking.members?.reduce(
+          (total, member) => total + 1 + (member.guests || 0),
+          0
+        ) || 0,
+
+      isCurrentUserMember:
+        booking.members?.some((member) => member.userId === user?._id) || false,
     }));
-  }, [availability]);
+  }, [availability, user?._id]);
 
   const stableGetUserById = useCallback(
     async (userId) => {
@@ -134,9 +145,14 @@ export default function Calendar({
     const transformedData = transformedAvailability();
     if (!transformedData || !Array.isArray(transformedData)) return;
 
+    // Collect all unique user IDs from members arrays
     const userIds = [
       ...new Set(
-        transformedData.map((booking) => booking.userId).filter(Boolean)
+        transformedData.flatMap(
+          (booking) =>
+            booking.members?.map((member) => member.userId).filter(Boolean) ||
+            []
+        )
       ),
     ];
 
@@ -303,6 +319,7 @@ export default function Calendar({
     });
   };
 
+  // Updated renderTimeSlot function section
   const renderTimeSlot = (time, bay) => {
     const booking = getBookingForSlot(time, bay);
     const isSlotBooked = isBookingInSlot(time, bay);
@@ -324,8 +341,6 @@ export default function Calendar({
         const endDate = convertISOToLocalDate(booking.originalEndTime);
         const startTime = convertISOToTimeFormat(booking.originalStartTime);
         const endTime = convertISOToTimeFormat(booking.originalEndTime);
-
-        const bookingStartHour = parseInt(startTime.split(":")[0]);
         const bookingEndHour = parseInt(endTime.split(":")[0]);
 
         let remainingHours;
@@ -357,33 +372,65 @@ export default function Calendar({
 
       const actualSpan = getAvailableSpanWithinHours(booking, time);
 
-      const userId = booking.userId;
-      const user = userCache[userId];
-      const isLoadingUser = loadingUsers.has(userId);
+      // Get all members' user data for display
+      const members = booking.members || [];
+      const memberUsers = members.map((member) => ({
+        userId: member.userId,
+        guests: member.guests || 0,
+        user: userCache[member.userId],
+        isLoading: loadingUsers.has(member.userId),
+      }));
 
-      let displayUserName = "Unknown User";
-      if (isLoadingUser) {
-        displayUserName = "Loading...";
-      } else if (user) {
-        displayUserName = user.name;
-      } else if (userId) {
-        displayUserName = `User ${userId.slice(-8)}`;
-      }
+      // Create display names for all members
+      const displayNames = memberUsers.map((memberData) => {
+        let displayName = "Unknown User";
+        if (memberData.isLoading) {
+          displayName = "Loading...";
+        } else if (memberData.user) {
+          displayName = memberData.user.name;
+        } else if (memberData.userId) {
+          displayName = `User ${memberData.userId.slice(-8)}`;
+        }
+
+        // Add guest count if any
+        if (memberData.guests > 0) {
+          displayName += ` +${memberData.guests}G`;
+        }
+
+        return displayName;
+      });
+
+      // Create a formatted member list for display
+      const formatMemberList = (names, maxLength) => {
+        if (names.length === 0) return "No members";
+        if (names.length === 1) return names[0];
+
+        const joinedNames = names.join(", ");
+        if (joinedNames.length <= maxLength) {
+          return joinedNames;
+        }
+
+        // If too long, show first member and count
+        return `${names[0]} +${names.length - 1}`;
+      };
 
       const maxPlayers = booking.playingTime > 1 ? 4 : 2;
       const numberOfPlayers = booking.numberOfPlayers;
 
       const width = `calc(100% / ${maxPlayers} * ${numberOfPlayers})`;
 
+      // Check if slot is full or if current user is already a member
+      const isSlotFull =
+        (booking.playingTime > 1 && booking.numberOfPlayers === 4) ||
+        booking.playingTime === 1;
+      const shouldShowJoinButton =
+        !isSlotFull && !isPast && !booking.isCurrentUserMember;
+
       return (
         <div className="relative h-12 sm:h-14 lg:h-16">
           <div
             className={`absolute inset-0 ${
-              (booking.playingTime > 1 && booking.numberOfPlayers === 4) ||
-              (booking.playingTime === 1 && booking.numberOfPlayers === 2) ||
-              isPast
-                ? "bg-red-500"
-                : "bg-[#6fbf49]"
+              isSlotFull || isPast ? "bg-red-500" : "bg-[#6fbf49]"
             } rounded-md sm:rounded-lg text-black font-bold flex flex-col justify-between p-1`}
             style={{
               height: `${actualSpan * 60}px`,
@@ -401,10 +448,7 @@ export default function Calendar({
               {/* Mobile: Stack vertically, show essential info only */}
               <div className="block sm:hidden">
                 <div className="text-xs font-bold truncate leading-tight">
-                  👤{" "}
-                  {displayUserName.length > 12
-                    ? displayUserName.slice(0, 12) + "..."
-                    : displayUserName}
+                  👤 {formatMemberList(displayNames, 12)}
                 </div>
                 <div className="text-xs font-bold truncate leading-tight">
                   P: {booking.numberOfPlayers}
@@ -418,10 +462,7 @@ export default function Calendar({
               {/* Tablet: Show more info with better spacing */}
               <div className="hidden sm:block lg:hidden">
                 <div className="text-sm font-bold truncate">
-                  👤{" "}
-                  {displayUserName.length > 15
-                    ? displayUserName.slice(0, 15) + "..."
-                    : displayUserName}
+                  👤 {formatMemberList(displayNames, 20)}
                 </div>
                 <div className="text-sm font-bold truncate">
                   Players: {booking.numberOfPlayers}
@@ -435,10 +476,13 @@ export default function Calendar({
               {/* Desktop: Full info display */}
               <div className="hidden lg:block">
                 <div className="text-xs sm:text-sm font-bold text-wrap">
-                  👤 {displayUserName}
+                  👤{" "}
+                  {displayNames.length > 0
+                    ? displayNames.join(", ")
+                    : "No members"}
                 </div>
                 <div className="text-xs sm:text-sm font-bold text-wrap">
-                  Player: {booking.numberOfPlayers}
+                  Players: {booking.numberOfPlayers}
                 </div>
                 <div className="text-xs sm:text-sm opacity-90">
                   {formatTime(booking.startTime)} -{" "}
@@ -447,23 +491,21 @@ export default function Calendar({
               </div>
             </div>
 
-            {/* Join button - responsive sizing and positioning */}
-            {(booking.playingTime !== 1 || booking.numberOfPlayers !== 2) &&
-              (booking.playingTime <= 1 || booking.numberOfPlayers !== 4) &&
-              !isPast && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onJoinSlotClick(booking);
-                  }}
-                  className="bg-white hover:bg-gray-100 active:bg-gray-200 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 
-                          w-5 h-5 sm:w-6 sm:h-6 lg:w-6 lg:h-6
-                          touch-manipulation" // Better touch handling on mobile
-                >
-                  <Plus size={10} className="text-gray-700 sm:hidden" />
-                  <Plus size={12} className="text-gray-700 hidden sm:block" />
-                </button>
-              )}
+            {/* Join button - only show if not full, not past, and user is not already a member */}
+            {shouldShowJoinButton && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoinSlotClick(booking);
+                }}
+                className="bg-white hover:bg-gray-100 active:bg-gray-200 rounded-full flex items-center justify-center text-black transition-colors duration-200 absolute bottom-1 right-1 
+                        w-5 h-5 sm:w-6 sm:h-6 lg:w-6 lg:h-6
+                        touch-manipulation" // Better touch handling on mobile
+              >
+                <Plus size={10} className="text-gray-700 sm:hidden" />
+                <Plus size={12} className="text-gray-700 hidden sm:block" />
+              </button>
+            )}
           </div>
         </div>
       );
@@ -477,7 +519,7 @@ export default function Calendar({
       <button
         onClick={() => onSlotClick(time, bay)}
         className="w-full h-12 sm:h-14 lg:h-16 transition-colors duration-200 group flex items-center justify-center 
-                 hover:bg-blue-50 active:bg-blue-100 touch-manipulation" // Better mobile interaction
+               hover:bg-blue-50 active:bg-blue-100 touch-manipulation" // Better mobile interaction
       >
         <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">
           <Plus className="text-white w-3 h-3 sm:w-3 sm:h-3 lg:w-4 lg:h-4" />
