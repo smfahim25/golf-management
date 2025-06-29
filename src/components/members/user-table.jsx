@@ -13,7 +13,9 @@ export default function UsersTable({
   onStatusChange,
 }) {
   const [dropdownStates, setDropdownStates] = useState({});
+  const [dropdownPositions, setDropdownPositions] = useState({});
   const dropdownRefs = useRef({});
+  const tableRef = useRef(null);
 
   const SortIcon = ({ column }) => {
     if (sortConfig.key !== column) {
@@ -28,6 +30,20 @@ export default function UsersTable({
 
   const toggleDropdown = (userId, field) => {
     const key = `${userId}-${field}`;
+    const buttonElement = dropdownRefs.current[key];
+
+    if (buttonElement) {
+      const rect = buttonElement.getBoundingClientRect();
+      setDropdownPositions((prev) => ({
+        ...prev,
+        [key]: {
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+        },
+      }));
+    }
+
     setDropdownStates((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -49,7 +65,8 @@ export default function UsersTable({
         if (
           dropdownStates[key] &&
           dropdownRefs.current[key] &&
-          !dropdownRefs.current[key].contains(event.target)
+          !dropdownRefs.current[key].contains(event.target) &&
+          !event.target.closest(`[data-dropdown="${key}"]`)
         ) {
           setDropdownStates((prev) => ({
             ...prev,
@@ -65,41 +82,118 @@ export default function UsersTable({
     };
   }, [dropdownStates]);
 
+  // Close dropdowns on scroll
+  useEffect(() => {
+    function handleScroll() {
+      if (Object.values(dropdownStates).some((state) => state)) {
+        setDropdownStates({});
+      }
+    }
+
+    const scrollContainer = tableRef.current?.closest(".overflow-x-auto");
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll);
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
+    }
+
+    // Also listen to window scroll
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [dropdownStates]);
+
+  // Update dropdown positions on window resize
+  useEffect(() => {
+    function handleResize() {
+      if (Object.values(dropdownStates).some((state) => state)) {
+        setDropdownStates({});
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [dropdownStates]);
+
+  // Check if a field should show as plain text (for admin users on restricted fields)
+  const shouldShowAsPlainText = (user, field) => {
+    const isUserAdmin = user.membership === "Admin";
+    return (
+      isUserAdmin &&
+      (field === "accountStatus" || field === "subscriptionStatus")
+    );
+  };
+
   const StatusDropdown = ({ user, field, options, value }) => {
     const key = `${user.id}-${field}`;
     const isOpen = dropdownStates[key];
+    const showAsPlainText = shouldShowAsPlainText(user, field);
+    const position = dropdownPositions[key];
 
-    return (
-      <div className="relative" ref={(el) => (dropdownRefs.current[key] = el)}>
-        <button
-          onClick={() => toggleDropdown(user.id, field)}
-          className="flex items-center justify-between w-full px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 min-w-0"
-        >
-          <span className={`${getStatusColor(value, field)} truncate`}>
+    if (showAsPlainText) {
+      return (
+        <div className="w-full px-3 py-2">
+          <span className={`${getStatusColor(value, field)} font-medium`}>
             {value}
           </span>
-          <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-1" />
-        </button>
+        </div>
+      );
+    }
 
-        {isOpen && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[120px]">
-            {options.map((option) => (
-              <button
-                key={option}
-                onClick={() => {
-                  onStatusChange(user.id, field, option);
-                  closeDropdown(user.id, field);
-                }}
-                className={`w-full px-3 py-2 text-left  hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
-                  value === option ? "bg-blue-50 text-blue-700" : ""
-                }`}
-              >
-                {option}
-              </button>
-            ))}
+    return (
+      <>
+        <div className="relative">
+          <button
+            ref={(el) => (dropdownRefs.current[key] = el)}
+            onClick={() => toggleDropdown(user.id, field)}
+            className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded bg-white hover:bg-gray-50 min-w-0 transition-colors"
+          >
+            <span className={`${getStatusColor(value, field)} truncate`}>
+              {value}
+            </span>
+            <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-2" />
+          </button>
+        </div>
+
+        {/* Portal-style dropdown rendered at document level */}
+        {isOpen && position && (
+          <div
+            className="fixed inset-0 z-[9999]"
+            style={{ pointerEvents: "none" }}
+          >
+            {/* Invisible overlay to catch clicks */}
+            <div
+              className="absolute inset-0"
+              style={{ pointerEvents: "auto" }}
+              onClick={() => closeDropdown(user.id, field)}
+            />
+            {/* Dropdown menu */}
+            <div
+              data-dropdown={key}
+              className="absolute bg-white border border-gray-300 rounded-lg shadow-lg min-w-[140px] max-w-[200px]"
+              style={{
+                top: `${position.top + 4}px`,
+                left: `${position.left}px`,
+                width: `${Math.max(position.width, 140)}px`,
+                pointerEvents: "auto",
+              }}
+            >
+              {options.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => {
+                    onStatusChange(user.id, field, option);
+                    closeDropdown(user.id, field);
+                  }}
+                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                    value === option ? "bg-blue-50 text-blue-700" : ""
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </>
     );
   };
 
@@ -123,15 +217,15 @@ export default function UsersTable({
   };
 
   const columns = [
-    { key: "createdAt", label: "Created At", width: "w-28" },
+    { key: "createdAt", label: "Created At", width: "w-32" },
     { key: "name", label: "Name", width: "w-48" },
-    { key: "email", label: "Email", width: "w-52" },
-    { key: "membership", label: "Membership", width: "w-28" },
-    { key: "accountStatus", label: "Account Status", width: "w-32" },
-    { key: "subscriptionStatus", label: "Subscription Status", width: "w-36" },
-    { key: "subscriptionDate", label: "Subscription Date", width: "w-32" },
-    { key: "subscriptionPlan", label: "Subscription Plan", width: "w-32" },
-    { key: "actions", label: "", width: "w-32" },
+    { key: "email", label: "Email", width: "w-56" },
+    { key: "membership", label: "Membership", width: "w-36" },
+    { key: "accountStatus", label: "Account Status", width: "w-44" },
+    { key: "subscriptionStatus", label: "Subscription Status", width: "w-52" },
+    { key: "subscriptionDate", label: "Subscription Date", width: "w-52" },
+    { key: "subscriptionPlan", label: "Subscription Plan", width: "w-52" },
+    { key: "actions", label: "Actions", width: "w-24" },
   ];
 
   if (loading) {
@@ -147,8 +241,8 @@ export default function UsersTable({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-max">
+      <div className="overflow-x-auto" style={{ position: "relative" }}>
+        <table ref={tableRef} className="w-full min-w-max table-fixed">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {columns.map((column) => (
@@ -156,15 +250,15 @@ export default function UsersTable({
                   key={column.key}
                   className={`${
                     column.width
-                  } px-3 py-3 text-left  font-semibold text-gray-900 ${
+                  } px-4 py-4 text-left font-semibold text-gray-900 ${
                     column.key !== "actions"
                       ? "cursor-pointer hover:bg-gray-100"
                       : ""
                   }`}
                   onClick={() => column.key !== "actions" && onSort(column.key)}
                 >
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="truncate">{column.label}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="truncate text-[14px]">{column.label}</span>
                     {column.key !== "actions" && (
                       <SortIcon column={column.key} />
                     )}
@@ -185,15 +279,18 @@ export default function UsersTable({
               </tr>
             ) : (
               users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-3  text-gray-900">
-                    <div className="w-28 truncate" title={user.createdAt}>
+                <tr
+                  key={user.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
+                  <td className="px-4 py-4 text-gray-900">
+                    <div className="truncate text-sm" title={user.createdAt}>
                       {user.createdAt}
                     </div>
                   </td>
-                  <td className="px-3 py-3  text-gray-900">
-                    <div className="w-48 flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <td className="px-4 py-4 text-gray-900">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {user.avatar ? (
                           <img
                             src={user.avatar || "/placeholder.svg"}
@@ -209,77 +306,74 @@ export default function UsersTable({
                           </span>
                         )}
                       </div>
-                      <span className="font-medium truncate" title={user.name}>
+                      <span
+                        className="font-medium truncate text-sm"
+                        title={user.name}
+                      >
                         {user.name}
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-3  text-gray-900">
-                    <div className="w-52 truncate" title={user.email}>
+                  <td className="px-4 py-4 text-gray-900">
+                    <div className="truncate text-sm" title={user.email}>
                       {user.email}
                     </div>
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="w-28">
-                      <StatusDropdown
-                        user={user}
-                        field="membership"
-                        options={["Admin", "User"]}
-                        value={user.membership}
-                      />
-                    </div>
+                  <td className="px-4 py-4">
+                    <StatusDropdown
+                      user={user}
+                      field="membership"
+                      options={["Admin", "User"]}
+                      value={user.membership}
+                    />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="w-32">
-                      <StatusDropdown
-                        user={user}
-                        field="accountStatus"
-                        options={["Active", "Pending"]}
-                        value={user.accountStatus}
-                      />
-                    </div>
+                  <td className="px-4 py-4">
+                    <StatusDropdown
+                      user={user}
+                      field="accountStatus"
+                      options={["Active", "Pending"]}
+                      value={user.accountStatus}
+                    />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="w-36">
-                      <StatusDropdown
-                        user={user}
-                        field="subscriptionStatus"
-                        options={["Active", "Inactive"]}
-                        value={user.subscriptionStatus}
-                      />
-                    </div>
+                  <td className="px-4 py-4">
+                    <StatusDropdown
+                      user={user}
+                      field="subscriptionStatus"
+                      options={["Active", "Inactive"]}
+                      value={user.subscriptionStatus}
+                    />
                   </td>
-                  <td className="px-3 py-3 text-gray-900">
+                  <td className="px-4 py-4 text-gray-900">
                     <div
-                      className="w-32 truncate"
+                      className="truncate text-sm"
                       title={user.subscriptionDate || "-"}
                     >
                       {user.subscriptionDate || "-"}
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-gray-900">
+                  <td className="px-4 py-4 text-gray-900">
                     <div
-                      className="w-32 truncate"
+                      className="truncate text-sm"
                       title={user.subscriptionPlan || "-"}
                     >
                       {user.subscriptionPlan || "-"}
                     </div>
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="w-32 flex items-center justify-center">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => onEdit(user)}
-                        className=" text-indigo-500 px-2 py-1 rounded font-medium transition-colors duration-200"
+                        className="text-indigo-600 hover:text-indigo-800 p-1 rounded transition-colors duration-200"
                         title="Edit user"
                       >
-                        <SquarePen />
+                        <SquarePen className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDelete(user)}
-                        className=" text-red-500 px-2 py-1 rounded font-medium transition-colors duration-200"
+                        className="text-red-600 hover:text-red-800 p-1 rounded transition-colors duration-200"
                         title="Delete user"
                       >
-                        <Trash2 />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

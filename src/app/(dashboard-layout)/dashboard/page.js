@@ -212,7 +212,7 @@ export default function Page() {
   const refreshAvailability = async () => {
     if (selectedClub && selectedDate) {
       try {
-        await checkAvailability(selectedDate, selectedClub._id);
+        await checkAvailability(selectedDate, selectedClub._id, timezone);
       } catch (error) {
         console.error("Failed to refresh availability:", error);
       }

@@ -15,6 +15,8 @@ import {
   Users,
   LogOut,
   Boxes,
+  TicketsPlane,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -66,6 +68,19 @@ const adminNavigation = [
     href: "/dashboard/users",
     icon: Users,
   },
+  {
+    name: "Manage Plans",
+    href: "/dashboard/plans",
+    icon: TicketsPlane,
+  },
+];
+
+const subscriptionNavigation = [
+  {
+    name: "Subscribe to Plan",
+    href: "/dashboard/subscription",
+    icon: CreditCard,
+  },
 ];
 
 const bottomNavigation = [
@@ -84,6 +99,14 @@ const Sidebar = () => {
 
   const loggedIn = true;
   const isLoading = false;
+
+  // Check if user has subscription
+  const hasSubscription = user?.subscription && user?.subscription !== null;
+  const isUserSuperAdmin =
+    isMounted && loggedIn && !isLoading && user?.role === "admin";
+  const isRegularUser =
+    isMounted && loggedIn && !isLoading && user?.role === "user";
+  const shouldShowOnlySubscription = isRegularUser && !hasSubscription;
 
   useEffect(() => {
     setIsMounted(true);
@@ -132,6 +155,7 @@ const Sidebar = () => {
       ...navigation,
       ...adminNavigation,
       ...bottomNavigation,
+      ...subscriptionNavigation,
     ];
     for (const item of allNavItems) {
       if (item.subItems) {
@@ -297,6 +321,7 @@ const Sidebar = () => {
           <Link
             rel="nofollow"
             href={item.href}
+            target={target === "_blank" ? "_blank" : undefined}
             className={cn(
               "flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors",
               isActive(item.href)
@@ -322,8 +347,19 @@ const Sidebar = () => {
     return null;
   }
 
-  const isUserSuperAdmin =
-    isMounted && loggedIn && !isLoading && user?.role === "admin";
+  // Get navigation items based on user role and subscription status
+  const getNavigationItems = () => {
+    if (isUserSuperAdmin) {
+      return { main: navigation, admin: adminNavigation };
+    } else if (shouldShowOnlySubscription) {
+      return { main: subscriptionNavigation, admin: [] };
+    } else {
+      return { main: navigation, admin: [] };
+    }
+  };
+
+  const { main: mainNavigation, admin: currentAdminNavigation } =
+    getNavigationItems();
 
   return (
     <TooltipProvider>
@@ -382,19 +418,20 @@ const Sidebar = () => {
           </div>
           <div className="flex-1 overflow-auto border-r border-gray-100">
             <nav className="flex-1 space-y-1 px-5 py-4">
-              {/* Main Dashboard Section */}
+              {/* Main Section */}
               {!isCollapsed && (
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Dashboard
+                    {shouldShowOnlySubscription ? "Subscription" : "Dashboard"}
                   </h3>
                 </div>
               )}
-              {navigation.map((item) => (
+              {mainNavigation.map((item) => (
                 <NavItem key={item.name} item={item} target={item.target} />
               ))}
 
-              {isUserSuperAdmin && (
+              {/* Admin Section - only show for admin users */}
+              {isUserSuperAdmin && currentAdminNavigation.length > 0 && (
                 <>
                   {!isCollapsed && (
                     <div className="mt-6 mb-4">
@@ -403,7 +440,7 @@ const Sidebar = () => {
                       </h3>
                     </div>
                   )}
-                  {adminNavigation.map((item) => (
+                  {currentAdminNavigation.map((item) => (
                     <NavItem key={item.name} item={item} />
                   ))}
                 </>
@@ -413,9 +450,11 @@ const Sidebar = () => {
           {loggedIn && !isLoading && (
             <div className="border-t border-r border-gray-100 py-3 px-3">
               <nav className="space-y-1 px-2">
-                {bottomNavigation.map((item) => (
-                  <NavItem key={item.name} item={item} isBottom />
-                ))}
+                {/* Only show bottom navigation if not subscription-only mode */}
+                {!shouldShowOnlySubscription &&
+                  bottomNavigation.map((item) => (
+                    <NavItem key={item.name} item={item} isBottom />
+                  ))}
                 <button
                   onClick={() => {
                     logout();

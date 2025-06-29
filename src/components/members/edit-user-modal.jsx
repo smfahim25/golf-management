@@ -2,17 +2,18 @@
 
 import { useState, useRef } from "react";
 import { X } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function EditUserModal({ user, onClose, onSave }) {
   const [formData, setFormData] = useState({
-    firstName: user?.name?.split(" ")[0] || "",
-    lastName: user?.name?.split(" ").slice(1).join(" ") || "",
+    name: user?.name || "",
     email: user?.email || "",
     membership: user?.membership || "User",
     password: "",
     avatar: user?.avatar || "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleInputChange = (field, value) => {
@@ -25,6 +26,7 @@ export default function EditUserModal({ user, onClose, onSave }) {
   const handlePhotoChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData((prev) => ({
@@ -37,6 +39,7 @@ export default function EditUserModal({ user, onClose, onSave }) {
   };
 
   const handleRemovePhoto = () => {
+    setSelectedFile(null);
     setFormData((prev) => ({
       ...prev,
       avatar: "",
@@ -46,34 +49,41 @@ export default function EditUserModal({ user, onClose, onSave }) {
   const handleSave = async () => {
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const formDataToSend = new FormData();
 
-    const updatedUser = {
-      ...user,
-      name: `${formData.firstName} ${formData.lastName}`.trim(),
-      email: formData.email,
-      membership: formData.membership,
-      avatar: formData.avatar,
-    };
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("role", formData.membership.toLowerCase());
 
-    onSave(updatedUser);
-    setIsLoading(false);
-  };
+      if (formData.password.trim()) {
+        formDataToSend.append("password", formData.password);
+      }
 
-  const handleReset = () => {
-    setFormData({
-      firstName: user?.name?.split(" ")[0] || "",
-      lastName: user?.name?.split(" ").slice(1).join(" ") || "",
-      email: user?.email || "",
-      membership: user?.membership || "User",
-      password: "",
-      avatar: user?.avatar || "",
-    });
+      if (selectedFile) {
+        formDataToSend.append("profile_photo", selectedFile);
+      }
+
+      await onSave(user.id, formDataToSend);
+    } catch (error) {
+      console.error("Failed to save user:", error);
+      alert("Failed to save user. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleManageSubscription = () => {
-    alert("Manage Subscription functionality would be implemented here");
+    toast.success(
+      "Manage Subscription functionality would be implemented here"
+    );
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "";
+    const names = name.split(" ");
+    if (names.length === 1) return names[0][0]?.toUpperCase() || "";
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
   return (
@@ -102,8 +112,7 @@ export default function EditUserModal({ user, onClose, onSave }) {
                   />
                 ) : (
                   <span className="text-2xl font-medium text-gray-600">
-                    {formData.firstName[0]}
-                    {formData.lastName[0]}
+                    {getInitials(formData.name)}
                   </span>
                 )}
               </div>
@@ -135,31 +144,17 @@ export default function EditUserModal({ user, onClose, onSave }) {
 
           {/* Form Fields */}
           <div className="space-y-4">
-            {/* First Name */}
+            {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                First Name
+                Name
               </label>
               <input
                 type="text"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="First Name"
-              />
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Last Name
-              </label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange("lastName", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Last Name"
+                placeholder="Full Name"
               />
             </div>
 
@@ -221,12 +216,7 @@ export default function EditUserModal({ user, onClose, onSave }) {
             >
               {isLoading ? "Saving..." : "Save"}
             </button>
-            <button
-              onClick={handleReset}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-            >
-              Reset
-            </button>
+
             <button
               onClick={onClose}
               className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors duration-200"
