@@ -70,18 +70,23 @@ export default function Page() {
     email: user.email,
     membership: user.role === "admin" ? "Admin" : "User",
     accountStatus: user.isVerified ? "Active" : "Inactive",
-    subscriptionStatus: user.isVerified ? "Active" : "Inactive",
-    subscriptionDate: new Date(user.createdAt).toLocaleDateString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-    }),
-    subscriptionPlan: user.role === "admin" ? "Admin Plan" : "User Plan",
+    subscriptionStatus:
+      user.subscriptionStatus === "active" ? "Active" : "Inactive",
+    subscriptionDate: user.subscriptionDate
+      ? new Date(user.subscriptionDate).toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        })
+      : null,
+    subscriptionFrequency: user.subscriptionFrequency || null,
     avatar: user?.profile_photo || "",
     phone: user.phone || "",
     address: user.address || "",
     isVerified: user.isVerified,
     needsPasswordChange: user.needsPasswordChange,
+    hasActiveSubscription:
+      user.subscriptionStatus === "active" && user.subscriptionDate,
     originalData: user,
   }));
 
@@ -153,8 +158,10 @@ export default function Page() {
         await updateUser(userId, { isVerified: isVerified });
         await fetchUsers();
       } else if (field === "subscriptionStatus") {
-        const isVerified = newValue === "Active";
-        await updateUser(userId, { isVerified: isVerified });
+        // Only allow changing subscription status if user has made payment
+        const subscriptionStatus =
+          newValue === "Active" ? "active" : "inactive";
+        await updateUser(userId, { subscriptionStatus: subscriptionStatus });
         await fetchUsers();
       }
     } catch (error) {

@@ -4,6 +4,7 @@ import { Check, ArrowRight, Loader2, Gift, X, Tag } from "lucide-react";
 import { usePlanStore } from "@/stores/PlanStore";
 import toast from "react-hot-toast";
 import { usePaymentStore } from "@/stores/PaymentStore";
+import useAuthStore from "@/stores/AuthStore";
 
 const SubscriptionPage = () => {
   const { plans, loading, error, getPlans } = usePlanStore();
@@ -14,6 +15,7 @@ const SubscriptionPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [promoError, setPromoError] = useState("");
   const { createCheckoutSession } = usePaymentStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     getPlans();
@@ -70,17 +72,14 @@ const SubscriptionPage = () => {
     setIsProcessing(true);
 
     try {
-      // Calculate the final price after discount
       const finalPrice = calculateDiscountedPrice(selectedPlan.price);
 
-      // Prepare payment data in the required format
       const paymentData = {
-        userId: "6851080d953dbeaf4a4e89c0", // You should get this from user context/auth
-        subscriptionType: selectedPlan.duration, // "monthly", "yearly", etc.
+        userId: user?._id,
+        subscriptionType: selectedPlan.duration,
         amount: finalPrice,
       };
 
-      // Call the payment creation function
       const result = await createCheckoutSession(paymentData);
 
       if (result.success) {

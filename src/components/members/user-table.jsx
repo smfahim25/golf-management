@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronUp, ChevronDown, SquarePen, Trash2 } from "lucide-react";
+import { ChevronUp, ChevronDown, SquarePen, Trash2, Lock } from "lucide-react";
 
 export default function UsersTable({
   users,
@@ -116,9 +116,13 @@ export default function UsersTable({
   // Check if a field should show as plain text (for admin users on restricted fields)
   const shouldShowAsPlainText = (user, field) => {
     const isUserAdmin = user.membership === "Admin";
+    const isSubscriptionField = field === "subscriptionStatus";
+    const hasNoActiveSubscription = !user.hasActiveSubscription;
+
     return (
-      isUserAdmin &&
-      (field === "accountStatus" || field === "subscriptionStatus")
+      (isUserAdmin &&
+        (field === "accountStatus" || field === "subscriptionStatus")) ||
+      (isSubscriptionField && hasNoActiveSubscription)
     );
   };
 
@@ -127,13 +131,23 @@ export default function UsersTable({
     const isOpen = dropdownStates[key];
     const showAsPlainText = shouldShowAsPlainText(user, field);
     const position = dropdownPositions[key];
+    const isDisabled =
+      field === "subscriptionStatus" && !user.hasActiveSubscription;
 
     if (showAsPlainText) {
       return (
         <div className="w-full px-3 py-2">
-          <span className={`${getStatusColor(value, field)} font-medium`}>
-            {value}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`${getStatusColor(value, field)} font-medium`}>
+              {value}
+            </span>
+            {isDisabled && (
+              <Lock
+                className="w-3 h-3 text-gray-400"
+                title="Payment required to change subscription status"
+              />
+            )}
+          </div>
         </div>
       );
     }
@@ -144,17 +158,33 @@ export default function UsersTable({
           <button
             ref={(el) => (dropdownRefs.current[key] = el)}
             onClick={() => toggleDropdown(user.id, field)}
-            className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded bg-white hover:bg-gray-50 min-w-0 transition-colors"
+            disabled={isDisabled}
+            className={`flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded bg-white min-w-0 transition-colors ${
+              isDisabled
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "hover:bg-gray-50"
+            }`}
           >
-            <span className={`${getStatusColor(value, field)} truncate`}>
+            <span
+              className={`${getStatusColor(value, field)} truncate ${
+                isDisabled ? "text-gray-400" : ""
+              }`}
+            >
               {value}
             </span>
-            <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-2" />
+            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+              {isDisabled && <Lock className="w-3 h-3 text-gray-400" />}
+              <ChevronDown
+                className={`w-3 h-3 ${
+                  isDisabled ? "text-gray-400" : "text-gray-400"
+                }`}
+              />
+            </div>
           </button>
         </div>
 
         {/* Portal-style dropdown rendered at document level */}
-        {isOpen && position && (
+        {isOpen && position && !isDisabled && (
           <div
             className="fixed inset-0 z-[9999]"
             style={{ pointerEvents: "none" }}
@@ -224,7 +254,11 @@ export default function UsersTable({
     { key: "accountStatus", label: "Account Status", width: "w-44" },
     { key: "subscriptionStatus", label: "Subscription Status", width: "w-52" },
     { key: "subscriptionDate", label: "Subscription Date", width: "w-52" },
-    { key: "subscriptionPlan", label: "Subscription Plan", width: "w-52" },
+    {
+      key: "subscriptionFrequency",
+      label: "Subscription Frequency",
+      width: "w-52",
+    },
     { key: "actions", label: "Actions", width: "w-24" },
   ];
 
@@ -345,20 +379,21 @@ export default function UsersTable({
                   </td>
                   <td className="px-4 py-4 text-gray-900">
                     <div
-                      className="truncate text-sm"
-                      title={user.subscriptionDate || "-"}
+                      className="truncate text-[15px] text-black"
+                      title={user.subscriptionDate || "No subscription"}
                     >
-                      {user.subscriptionDate || "-"}
+                      {user.subscriptionDate || ""}
                     </div>
                   </td>
                   <td className="px-4 py-4 text-gray-900">
                     <div
-                      className="truncate text-sm"
-                      title={user.subscriptionPlan || "-"}
+                      className="truncate text-[15px] text-black"
+                      title={user.subscriptionFrequency || "No frequency set"}
                     >
-                      {user.subscriptionPlan || "-"}
+                      {user.subscriptionFrequency || ""}
                     </div>
                   </td>
+
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-1">
                       <button
