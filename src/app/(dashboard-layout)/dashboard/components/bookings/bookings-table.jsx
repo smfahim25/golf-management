@@ -48,7 +48,6 @@ export default function BookingsTable({
 
   const columns = [
     { key: "date", label: "Date", width: "w-28" },
-    { key: "name", label: "Name", width: "w-36" },
     { key: "bay", label: "Bay", width: "w-20" },
     { key: "hours", label: "# of Hours", width: "w-24" },
     { key: "startTime", label: "Start Time", width: "w-32" },
@@ -113,11 +112,7 @@ export default function BookingsTable({
                         {booking.date}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-gray-900 font-medium">
-                      <div className="w-36 truncate" title={booking.name}>
-                        {booking.name}
-                      </div>
-                    </td>
+
                     <td className="px-3 py-3 text-gray-900">
                       <div className="w-20 truncate" title={booking.bay}>
                         {booking.bay}

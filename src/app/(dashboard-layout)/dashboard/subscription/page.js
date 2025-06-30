@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Check, ArrowRight, Loader2, Gift, X, Tag } from "lucide-react";
 import { usePlanStore } from "@/stores/PlanStore";
+import toast from "react-hot-toast";
+import { usePaymentStore } from "@/stores/PaymentStore";
 
 const SubscriptionPage = () => {
   const { plans, loading, error, getPlans } = usePlanStore();
@@ -11,6 +13,7 @@ const SubscriptionPage = () => {
   const [discount, setDiscount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [promoError, setPromoError] = useState("");
+  const { createCheckoutSession } = usePaymentStore();
 
   useEffect(() => {
     getPlans();
@@ -60,22 +63,40 @@ const SubscriptionPage = () => {
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
-      alert("Please select a plan");
+      toast.error("Please select a plan");
       return;
     }
 
     setIsProcessing(true);
 
-    // Replace with actual subscription API call
-    setTimeout(() => {
+    try {
+      // Calculate the final price after discount
       const finalPrice = calculateDiscountedPrice(selectedPlan.price);
-      alert(
-        `Subscription successful! Plan: ${
-          selectedPlan.name
-        }, Price: ${formatPrice(finalPrice, selectedPlan.currency)}`
-      );
+
+      // Prepare payment data in the required format
+      const paymentData = {
+        userId: "6851080d953dbeaf4a4e89c0", // You should get this from user context/auth
+        subscriptionType: selectedPlan.duration, // "monthly", "yearly", etc.
+        amount: finalPrice,
+      };
+
+      // Call the payment creation function
+      const result = await createCheckoutSession(paymentData);
+
+      if (result.success) {
+        toast.success("Redirecting to payment...");
+        if (result.url) {
+          window.location.href = result.url;
+        }
+      } else {
+        toast.error(result.message || "Payment initialization failed");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
       setIsProcessing(false);
-    }, 2000);
+    }
   };
 
   const getDurationDisplay = (duration) => {

@@ -32,16 +32,13 @@ export default function Page() {
     return apiBookings?.map((booking) => ({
       id: booking._id,
       date: new Date(booking.date).toLocaleDateString(),
-      name: booking.userId?.name || "Unknown User",
       bay: booking.bay,
       hours: booking.playingTime,
       startTime: booking.startTime,
       endTime: booking.endTime,
-      players: booking.numberOfPlayers,
-      members: booking?.numberOfGuest
-        ? booking.numberOfPlayers - booking?.numberOfGuest
-        : 0,
-      guests: booking?.numberOfGuest || 0,
+      players: booking.totalMembersWithGuests,
+      members: booking?.totalMembers || 0,
+      guests: booking?.totalGuests || 0,
       originalData: booking,
     }));
   };
